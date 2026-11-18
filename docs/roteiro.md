@@ -141,7 +141,7 @@ Issues de decisão já abertas:
 
 ### E3.5 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. Para a baixa, uma agenda por organização com o intervalo dela, em vez de uma rotina a cada 5 minutos: assim o Neon só acorda quando há o que consultar e fica na camada gratuita (com uma rotina a cada 5 minutos o banco nunca dorme). Conferir a retenção de histórico do Neon como backup.
+**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. **Em aberto:** a rotina `baixar` que acorda a cada 5 minutos consulta o banco toda vez, então o Neon nunca dorme e sai da camada gratuita (cerca de US$ 9/mês). Alternativa a decidir: uma agenda do EventBridge por organização, com o intervalo dela. Conferir a retenção de histórico do Neon como backup.
 **Pronto quando:** um `deploy` sobe tudo do zero e as três rotinas rodam no horário no sandbox.
 **Depende de:** E2.6, E3.1
 
