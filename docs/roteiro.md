@@ -90,7 +90,7 @@ Issues de decisão já abertas:
 
 ### E2.3 Adaptador Inter: token, mTLS e limites
 **Objetivo:** falar com o Inter de forma segura e educada.
-**Inclui:** token OAuth com cache (vale 60 min; só 5 pedidos por minuto), certificado do cliente (mTLS), cabeçalho `x-conta-corrente` quando preciso, recuo exponencial no 429 e no 503. Escopos pedidos: só `cobv.read` e `cobv.write`.
+**Inclui:** token OAuth com cache (vale 60 min; só 5 pedidos por minuto), certificado do cliente (mTLS), cabeçalho `x-conta-corrente` quando preciso, recuo exponencial no 429 e no 503. Escopos pedidos: `cobv.read`, `cobv.write` e `pix.read`. O `pix.read` é temporário: sai depois de cerca de dois meses sem nenhum Pix recebido fora de uma cobrança.
 **Pronto quando:** o token é obtido no sandbox e reaproveitado, com testes sobre respostas gravadas.
 **Depende de:** E1.6, E2.1, E2.2, [issue #3](https://github.com/leonardorudolfocardoso/pix-em-dia/issues/3) (números do Inter)
 
@@ -149,7 +149,7 @@ Issues de decisão já abertas:
 
 ### E4.1 Integração de produção do cliente piloto `tarefa-manual`
 **Objetivo:** credenciais reais da conta PJ do cliente piloto, criadas pelo responsável pela conta.
-**Inclui:** no Internet Banking do Inter, em Integrar → Minhas integrações: criar a integração com os escopos `cobv.read` e `cobv.write` (e `pix.read`, se a E2.6 usar `GET /pix`), baixar o certificado e a chave, e confirmar qual chave Pix do CNPJ usar.
+**Inclui:** no Internet Banking do Inter, em Integrar → Minhas integrações: criar a integração com os escopos `cobv.read`, `cobv.write` e `pix.read` (temporário, como na E2.3), baixar o certificado e a chave, e confirmar qual chave Pix do CNPJ usar.
 
 ### E4.2 Piloto em pequena escala
 **Objetivo:** testar com gente de verdade, em pequena escala.
