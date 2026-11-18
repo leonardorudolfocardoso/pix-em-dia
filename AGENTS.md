@@ -13,7 +13,7 @@ A definir junto com a escolha da linguagem e do banco de dados. Ainda não há c
 3. **Nada do formato do banco fora do adaptador.** JSON, nomes de campo e situações do Inter ficam só no adaptador do Inter. O resto do código usa só os tipos do domínio.
 4. **Sem IA no caminho do dinheiro.** Emissão, baixa e cancelamento são código determinístico.
 5. **Segredos nunca no repositório.** Nada de `.crt`, `.key`, `.env`, tokens ou client secrets em código, testes ou fixtures. Respostas gravadas do sandbox passam por limpeza antes de entrar em `tests/`.
-6. **Permissão mínima.** Só os escopos `cobv.read` e `cobv.write` (e `pix.read`, se necessário). Nunca escopos de pagamento ou transferência.
+6. **Permissão mínima.** Só os escopos `cobv.read`, `cobv.write` e `pix.read`. O `pix.read` é temporário (veja [contexto](docs/contexto.md)): o código precisa funcionar sem ele, e de `GET /pix` só se guardam os Pix sem `txid`. Nunca escopos de pagamento, devolução (`pix.write`) ou transferência.
 7. **Nunca dados reais de pessoas.** Testes e exemplos usam dados inventados.
 
 ## Convenções

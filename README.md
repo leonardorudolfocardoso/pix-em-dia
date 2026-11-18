@@ -7,7 +7,7 @@ Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, co
 ## O que faz
 
 - **Emite cobranças Pix com vencimento**, recorrentes (uma por assinatura por mês) ou avulsas (uma cobrança única, para uma pessoa ou um grupo).
-- **Dá baixa sozinho:** consulta o banco periodicamente (intervalo por organização, padrão 60 minutos) e marca o que foi pago.
+- **Dá baixa sozinho:** consulta o banco periodicamente (intervalo por organização, padrão 60 minutos) e marca o que foi pago. Pix feito direto na chave, sem cobrança, aparece na lista do dia para uma pessoa ligar à cobrança certa.
 - **Monta a lista do dia** com quem lembrar e a mensagem pronta, com o Pix copia e cola. Uma pessoa envia; o Em Dia não manda mensagens.
 
 ## Princípios
@@ -16,7 +16,7 @@ Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, co
 - **Sem IA no caminho do dinheiro.** Emissão e baixa são código determinístico.
 - **Cada organização só vê os próprios dados**, garantido no próprio banco de dados (por exemplo, com Row Level Security do PostgreSQL).
 - **Credenciais nunca no repositório.** Certificados, chaves e segredos ficam num cofre.
-- **Permissão mínima no banco:** só criar e consultar cobranças. Nenhuma permissão para pagar ou transferir.
+- **Permissão mínima no banco:** criar, consultar e cancelar cobranças e, durante a transição, ler os Pix recebidos. Nenhuma permissão para pagar, devolver ou transferir.
 
 ## Como funciona
 
