@@ -141,7 +141,7 @@ Issues de decisão já abertas:
 
 ### E3.5 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** escolher onde roda (VPS ou serviço de jobs), banco de dados, cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 5 min, consultando só as organizações cujo intervalo já passou) e lista (todo dia de manhã), e backup do banco.
+**Inclui:** escolher onde rodam as rotinas (por exemplo AWS Lambda com EventBridge Scheduler, uma VPS ou Fly.io), banco no Neon (São Paulo), cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 5 min, consultando só as organizações cujo intervalo já passou) e lista (todo dia de manhã), e backup do banco.
 **Depende de:** E2.6, E3.1
 
 ---
