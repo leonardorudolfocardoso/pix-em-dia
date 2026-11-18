@@ -110,7 +110,7 @@ Rótulos propostos: `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-
 
 ### #16 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** escolher onde roda (VPS ou serviço de jobs), Postgres, cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 15 min) e lista (todo dia de manhã), e backup do banco.
+**Inclui:** escolher onde roda (VPS ou serviço de jobs), Postgres, cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 5 min, consultando só as organizações cujo intervalo já passou) e lista (todo dia de manhã), e backup do banco.
 **Depende de:** #12, #13
 
 ---
