@@ -14,7 +14,7 @@ Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, co
 
 - **Nunca duplica.** Rodar qualquer rotina de novo não cria uma segunda cobrança.
 - **Sem IA no caminho do dinheiro.** Emissão e baixa são código determinístico.
-- **Cada organização só vê os próprios dados**, garantido pelo banco de dados (Row Level Security).
+- **Cada organização só vê os próprios dados**, garantido no próprio banco de dados (por exemplo, com Row Level Security do PostgreSQL).
 - **Credenciais nunca no repositório.** Certificados, chaves e segredos ficam num cofre.
 - **Permissão mínima no banco:** só criar e consultar cobranças. Nenhuma permissão para pagar ou transferir.
 

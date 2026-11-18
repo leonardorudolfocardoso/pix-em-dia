@@ -5,13 +5,13 @@ Diagramas dos processos combinados antes do código (Pix com vencimento, baixa p
 
 ## Mapa de contextos (proposta)
 
-Cinco contextos dentro do Em Dia e três de fora. Cada contexto tem a própria linguagem: o que a escolinha chama de "aluno" o Em Dia chama de "assinatura", e o que o Inter chama de "cobv CONCLUIDA" o Em Dia chama de "cobrança paga". As setas apontam de quem fornece (U, upstream) para quem depende (D, downstream).
+Cinco contextos dentro do Em Dia e três de fora. Cada contexto tem a própria linguagem: o que o sistema do cliente chama de "aluno" ou "plano" o Em Dia chama de "assinatura", e o que o Inter chama de "cobv CONCLUIDA" o Em Dia chama de "cobrança paga". As setas apontam de quem fornece (U, upstream) para quem depende (D, downstream).
 
 ```mermaid
 flowchart LR
   subgraph fora["Fora do Em Dia"]
     direction TB
-    cliente["Sistema do cliente<br/>escolinha: alunos, turmas, chamada"]
+    cliente["Sistema do cliente<br/>ex.: cadastro de clientes, planos"]
     inter["Banco Inter<br/>API Pix (padrão Banco Central)"]
     canal["Canal humano<br/>WhatsApp de quem envia"]
   end
@@ -57,7 +57,7 @@ flowchart LR
     emitir["Rotina: emitir<br/>dia 1 do mês"]
     baixar["Rotina: baixar<br/>intervalo por organização<br/>(padrão 60 min)"]
     lista["Rotina: lista do dia<br/>toda manhã"]
-    db[("Postgres<br/>isolado por organização")]
+    db[("Banco de dados<br/>isolado por organização")]
     adaptador["Adaptador do banco"]
     emitir --> db
     baixar --> db
@@ -81,10 +81,10 @@ Primeiro grava a cobrança no nosso banco, depois pede ao Inter. Como o `txid` �
 sequenceDiagram
   autonumber
   participant J as Rotina emitir
-  participant D as Postgres
+  participant D as Banco de dados
   participant A as Adaptador
   participant I as Inter
-  J->>D: para cada assinatura ativa:<br/>INSERT cobrança (a_emitir, txid calculado)<br/>ON CONFLICT DO NOTHING
+  J->>D: para cada assinatura ativa:<br/>grava cobrança (a_emitir, txid calculado)<br/>se já existir, não faz nada
   Note over D: já existe? nada muda.<br/>Uma por assinatura por período.
   J->>D: lista cobranças em a_emitir
   loop cada cobrança, até 100 por minuto
@@ -109,12 +109,12 @@ sequenceDiagram
 
 ## Cobrança avulsa
 
-Uniforme, torneio ou qualquer cobrança única. Quem cria informa a chave; pedir de novo com a mesma chave devolve a cobrança que já existe.
+Taxa de inscrição, material ou qualquer cobrança única. Quem cria informa a chave; pedir de novo com a mesma chave devolve a cobrança que já existe.
 
 ```mermaid
 flowchart TD
-  pedido["Pedido: Torneio de verão, R$ 80,<br/>vence 10/12, para 25 assinaturas"] --> cada["Para cada assinatura"]
-  cada --> chave["chave = torneio-verao-2026:referência"]
+  pedido["Pedido: Evento de dezembro, R$ 80,<br/>vence 10/12, para 25 assinaturas"] --> cada["Para cada assinatura"]
+  cada --> chave["chave = evento-dez-2026:referência"]
   chave --> existe{"Já existe cobrança<br/>com essa chave?"}
   existe -->|sim| devolve["Devolve a existente<br/>sem criar outra"]
   existe -->|não| grava["Grava a_emitir<br/>contato copiado da assinatura"]
@@ -132,7 +132,7 @@ sequenceDiagram
   participant J as Rotina baixar
   participant A as Adaptador
   participant I as Inter
-  participant D as Postgres
+  participant D as Banco de dados
   J->>A: listar_pagamentos(desde a última execução - 1h)
   A->>I: GET /cobv pagas (ou GET /pix)
   I-->>A: pagamentos com txid, valor, endToEndId
@@ -140,12 +140,13 @@ sequenceDiagram
   loop cada pagamento
     J->>D: acha cobrança pelo txid
     alt encontrou e valor confere
-      J->>D: INSERT pagamento (único por endToEndId)
+      J->>D: grava pagamento (único por endToEndId)
       J->>D: situação = paga
     else txid desconhecido ou valor diferente
-      J->>D: registra para o relatório, sem baixa
+      J->>D: grava pagamento sem cobrança (sem dono), sem baixa
     end
   end
+  J->>D: abertas com vencimento + dias após vencimento no passado:<br/>situação = expirada
   Note over J,D: Uma vez por dia a mesma rotina<br/>varre os últimos 7 dias, como rede de segurança.
 ```
 
@@ -178,9 +179,11 @@ stateDiagram-v2
   a_emitir --> aberta: Inter criou
   a_emitir --> falhou: Inter recusou
   falhou --> a_emitir: cadastro corrigido
+  a_emitir --> cancelada: cancelada antes de ir ao banco
+  falhou --> cancelada: alguém desistiu
   aberta --> paga: baixa encontrou o Pix
   aberta --> cancelada: alguém cancelou
-  aberta --> expirada: passou o vencimento<br/>+ dias após vencimento
+  aberta --> expirada: rotina baixar viu que passou<br/>o vencimento + dias após vencimento
   paga --> [*]
   cancelada --> [*]
   expirada --> [*]
@@ -189,14 +192,14 @@ stateDiagram-v2
 
 ## Modelo de dados
 
-Quatro tabelas, nenhuma com termos de escolinha. Toda tabela de dados tem `organizacao_id` e é protegida por Row Level Security.
+Quatro tabelas, nenhuma com termos de um cliente específico. Pagamentos que não batem com nenhuma cobrança ficam em `pagamentos` com `cobranca_id` vazio, para o relatório e os alertas. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados (por exemplo, Row Level Security do PostgreSQL).
 
 ```mermaid
 erDiagram
   ORGANIZACOES ||--o{ ASSINATURAS : tem
   ORGANIZACOES ||--o{ COBRANCAS : recebe
   ASSINATURAS ||--o{ COBRANCAS : "gera (recorrente) ou empresta contato (avulsa)"
-  COBRANCAS ||--o{ PAGAMENTOS : "quitada por"
+  COBRANCAS |o--o{ PAGAMENTOS : "quitada por (sem cobrança = pagamento sem dono)"
   ORGANIZACOES {
     uuid id
     text nome
@@ -204,6 +207,8 @@ erDiagram
     text chave_pix
     smallint dias_apos_vencimento
     date certificado_vence_em
+    smallint intervalo_baixa_min "5 a 1440, padrão 60"
+    timestamptz ultima_baixa_em
   }
   ASSINATURAS {
     uuid id
@@ -217,6 +222,7 @@ erDiagram
   }
   COBRANCAS {
     uuid id
+    uuid assinatura_id "opcional na avulsa"
     text tipo "recorrente ou avulsa"
     date periodo "só recorrente"
     text descricao
@@ -224,11 +230,14 @@ erDiagram
     bigint valor_centavos
     date vencimento
     text situacao
+    text motivo_falha "quando falhou"
     text txid "único por organização"
     text pix_copia_e_cola
   }
   PAGAMENTOS {
     uuid id
+    uuid cobranca_id "vazio = pagamento sem dono"
+    text txid "como veio do banco"
     bigint valor_centavos
     timestamptz pago_em
     text banco_e2e_id "único: mesmo Pix, um pagamento"
