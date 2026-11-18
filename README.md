@@ -30,7 +30,7 @@ O código fala com o banco por um adaptador com quatro operações: emitir, cons
 
 ## Stack
 
-Rust · PostgreSQL · `sqlx` · `tokio` · `reqwest`. O porquê está em [contexto e decisões](docs/contexto.md).
+Rust · PostgreSQL (Neon, São Paulo) · `sqlx` · `tokio` · `reqwest` · AWS Lambda e EventBridge Scheduler (São Paulo). O porquê está em [contexto e decisões](docs/contexto.md).
 
 ## Desenvolvimento
 
