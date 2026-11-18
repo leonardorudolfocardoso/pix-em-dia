@@ -174,7 +174,7 @@ flowchart TD
 
 Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
 
-Onde a lista aparece (arquivo, página ou Telegram) ainda está em aberto.
+Onde a lista aparece é decidido no item E0.2 do [roteiro](roteiro.md).
 
 
 ## Ciclo de vida de uma cobrança

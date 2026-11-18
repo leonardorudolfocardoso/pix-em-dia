@@ -52,7 +52,7 @@ Fonte: [portal do desenvolvedor do Inter](https://developers.inter.co/references
 
 - Dia de vencimento padrão e quantos dias o Pix vale depois de vencer (sugestão: 30).
 - Multa, juros ou desconto na v1 (sugestão: nenhum).
-- Onde a lista diária aparece: arquivo, página ou mensagem num bot.
+- Interface para as pessoas da organização (lista do dia, baixa à mão, cobrança avulsa): página web ou bot (roteiro E0.2).
 - Qual ferramenta de infraestrutura como código (SAM, CDK ou Terraform).
 
 Veja também: [processos](processos.md) e [roteiro](roteiro.md).
