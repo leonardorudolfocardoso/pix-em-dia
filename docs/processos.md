@@ -51,7 +51,7 @@ Três rotinas agendadas falam com o banco só por meio do adaptador. Ninguém de
 
 ```mermaid
 flowchart LR
-  planilha["Planilha ou sistema<br/>da organização"] -->|importa assinaturas| emdia
+  planilha["Planilha Google<br/>da organização"] <-->|lê assinaturas, avulsas e vínculos;<br/>escreve situação| emdia
   subgraph emdia["Em Dia"]
     direction TB
     emitir["Rotina: emitir<br/>dia 1 do mês"]
@@ -172,7 +172,7 @@ flowchart TD
   entrega --> humano["Pessoa revisa e envia pelo WhatsApp"]
 ```
 
-Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
+Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa na aba Vínculos da planilha ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
 
 Onde a lista aparece é decidido no item E0.2 do [roteiro](roteiro.md).
 
