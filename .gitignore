@@ -8,3 +8,6 @@
 .env
 .env.*
 segredos/
+
+# Rust
+/target

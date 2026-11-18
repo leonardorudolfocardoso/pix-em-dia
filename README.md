@@ -34,13 +34,14 @@ Rust · PostgreSQL (Neon, São Paulo) · `sqlx` · `tokio` · `reqwest` · AWS L
 
 ## Desenvolvimento
 
-Ainda não há código; a estrutura do projeto vem no item E1.2 do [roteiro](docs/roteiro.md). Quando existir:
+Precisa do Rust estável ([rustup](https://rustup.rs)).
 
 ```bash
 cargo build
-sqlx migrate run        # aplica as migrações no Postgres local (DATABASE_URL)
-cargo test              # precisa de Postgres local
+cargo test
 ```
+
+A partir da primeira migração (item E1.1 do [roteiro](docs/roteiro.md)), `cargo test` passa a precisar de um Postgres local, e `sqlx migrate run` aplica as migrações (`DATABASE_URL`).
 
 Regras e convenções para quem for escrever estão em [AGENTS.md](AGENTS.md).
 

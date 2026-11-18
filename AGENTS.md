@@ -4,7 +4,7 @@ Instruções para agentes de código (Claude, Codex, Copilot etc.) que trabalham
 
 ## Comandos
 
-Rust + PostgreSQL, com `sqlx`, `tokio` e `reqwest`. Ainda não há código; estes são os comandos previstos a partir do item E1.2 do roteiro.
+Rust + PostgreSQL, com `sqlx`, `tokio` e `reqwest`. Por enquanto só existe o esqueleto (`cargo build`, `cargo test`, `cargo clippy`, `cargo fmt`); os comandos do `sqlx` valem a partir da primeira migração (item E1.1 do roteiro). Dependência só entra no `Cargo.toml` junto com o código que a usa.
 
 ```bash
 cargo build                       # compilar
