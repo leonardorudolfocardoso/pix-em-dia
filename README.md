@@ -2,11 +2,11 @@
 
 Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, com baixa automática e lista diária de lembretes.
 
-> Em desenvolvimento. Primeira versão com Banco Inter, testada no sandbox.
+> Em desenvolvimento. Primeira versão com Banco Inter, a ser testada no sandbox.
 
 ## O que faz
 
-- **Emite cobranças Pix com vencimento**, recorrentes (uma por assinatura por mês) ou avulsas (uniforme, inscrição em evento).
+- **Emite cobranças Pix com vencimento**, recorrentes (uma por assinatura por mês) ou avulsas (uma cobrança única, para uma pessoa ou um grupo).
 - **Dá baixa sozinho:** consulta o banco a cada 15 minutos e marca o que foi pago.
 - **Monta a lista do dia** com quem lembrar e a mensagem pronta, com o Pix copia e cola. Uma pessoa envia; o Em Dia não manda mensagens.
 
@@ -28,22 +28,9 @@ organização ── assinaturas ── cobranças ── pagamentos
 
 O código fala com o banco por um adaptador com quatro operações: emitir, consultar, cancelar e listar pagamentos. Trocar ou adicionar um banco significa escrever um novo adaptador.
 
-## Stack
-
-Python 3.12 · PostgreSQL · pytest · uv
-
 ## Desenvolvimento
 
-```bash
-uv sync
-uv run pytest
-```
-
-Os testes usam um Postgres local e um banco falso que imita o Inter. Para falar com o sandbox do Inter, você precisa de credenciais próprias (veja as issues da etapa 2). Regras e convenções de código estão em [AGENTS.md](AGENTS.md).
-
-## Roteiro
-
-O desenvolvimento segue as issues do repositório, em quatro etapas: base, Inter no sandbox, operação e produção.
+Ainda não há código. Regras e convenções para quem for escrever estão em [AGENTS.md](AGENTS.md).
 
 ## Documentação
 
