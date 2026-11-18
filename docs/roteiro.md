@@ -16,7 +16,8 @@ Issues de decisão já abertas:
 
 ## Etapa 0: decisões antes do código
 
-### E0.1 Escolher a stack
+### E0.1 Escolher a stack ✓
+**Feito em 18/11/2026:** Rust + PostgreSQL (`sqlx`, `tokio`, `reqwest`); motivo nas decisões de [contexto.md](contexto.md).
 **Objetivo:** decidir a linguagem e o banco de dados antes de escrever código.
 **Inclui:** comparar as opções (por exemplo Python, TypeScript ou Go) pelo que o produto exige: cliente HTTPS com certificado (mTLS) e cache de token OAuth, rotinas agendadas (emitir, baixar, lista do dia), dinheiro em centavos inteiros, testes de idempotência simples de escrever e código fácil de revisar para quem está aprendendo. No banco de dados: isolamento por organização garantido pelo próprio banco (por exemplo, Row Level Security no Postgres) e restrições `UNIQUE` contra duplicata.
 **Pronto quando:** a escolha e o motivo estão registrados nas decisões de [contexto.md](contexto.md), e o README e o AGENTS.md trazem os comandos de instalar e testar.
@@ -26,20 +27,20 @@ Issues de decisão já abertas:
 ## Etapa 1: base, sem banco real
 
 ### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
-**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo banco de dados (por exemplo, Row Level Security no Postgres).
+**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
 **Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `intervalo_baixa_min` (5 a 1440, padrão 60) e `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
 **Pronto quando:** a migração roda num banco vazio sem erro.
 **Depende de:** E0.1
 
 ### E1.2 Estrutura do projeto e testes automáticos
 **Objetivo:** dar ao projeto uma estrutura que roda testes com um comando.
-**Inclui:** gerenciador de dependências e estrutura de pastas da stack escolhida na E0.1, um banco de teste que aplica as migrações, e GitHub Actions rodando os testes a cada push.
-**Pronto quando:** um único comando roda os testes, e eles passam no computador e no GitHub.
+**Inclui:** projeto `cargo` com `sqlx`, `tokio` e `reqwest`; migrações em `migrations/` aplicadas pelo `sqlx`; testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas); cache offline do `sqlx` (`.sqlx/`) commitado; e GitHub Actions rodando `cargo fmt --check`, `cargo clippy` e `cargo test` com um Postgres a cada push.
+**Pronto quando:** `cargo test` passa no computador e no GitHub.
 **Depende de:** E1.1
 
 ### E1.3 Identificar a organização pelo token (nunca por parâmetro)
 **Objetivo:** o código só descobre a organização a partir de uma credencial.
-**Inclui:** `Contexto` criado só por `autenticar(token)`; a conexão informa a organização ao banco de dados para o isolamento (por exemplo, `app.organizacao_id` lido pelo RLS no Postgres); um usuário de banco sem superpoderes para o app.
+**Inclui:** `Contexto` criado só por `autenticar(token)`; a conexão informa a organização ao banco de dados para o isolamento (`app.organizacao_id`, lido pelas políticas de RLS); um usuário de banco sem superpoderes para o app.
 **Pronto quando:** um teste prova que a organização A não lê nem grava nada da organização B, mesmo numa consulta sem filtro de organização.
 **Depende de:** E1.2
 

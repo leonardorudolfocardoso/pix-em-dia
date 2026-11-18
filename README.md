@@ -14,7 +14,7 @@ Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, co
 
 - **Nunca duplica.** Rodar qualquer rotina de novo não cria uma segunda cobrança.
 - **Sem IA no caminho do dinheiro.** Emissão e baixa são código determinístico.
-- **Cada organização só vê os próprios dados**, garantido no próprio banco de dados (por exemplo, com Row Level Security do PostgreSQL).
+- **Cada organização só vê os próprios dados**, garantido no próprio banco de dados, com Row Level Security do PostgreSQL.
 - **Credenciais nunca no repositório.** Certificados, chaves e segredos ficam num cofre.
 - **Permissão mínima no banco:** criar, consultar e cancelar cobranças e, durante a transição, ler os Pix recebidos. Nenhuma permissão para pagar, devolver ou transferir.
 
@@ -28,9 +28,21 @@ organização ── assinaturas ── cobranças ── pagamentos
 
 O código fala com o banco por um adaptador com quatro operações: emitir, consultar, cancelar e listar pagamentos. Trocar ou adicionar um banco significa escrever um novo adaptador.
 
+## Stack
+
+Rust · PostgreSQL · `sqlx` · `tokio` · `reqwest`. O porquê está em [contexto e decisões](docs/contexto.md).
+
 ## Desenvolvimento
 
-Ainda não há código. Regras e convenções para quem for escrever estão em [AGENTS.md](AGENTS.md).
+Ainda não há código; a estrutura do projeto vem no item E1.2 do [roteiro](docs/roteiro.md). Quando existir:
+
+```bash
+cargo build
+sqlx migrate run        # aplica as migrações no Postgres local (DATABASE_URL)
+cargo test              # precisa de Postgres local
+```
+
+Regras e convenções para quem for escrever estão em [AGENTS.md](AGENTS.md).
 
 ## Documentação
 
