@@ -29,17 +29,18 @@ Issues de decisão já abertas:
 
 ## Etapa 1: base, sem banco real
 
-### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
-**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
-**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
-**Pronto quando:** a migração roda num banco vazio sem erro.
+### E1.2 Estrutura do projeto e testes automáticos ✓
+**Feito em 18/11/2026:** projeto `cargo` sem dependências e GitHub Actions rodando `cargo fmt --check`, `cargo clippy` e `cargo test`. As dependências entram com o primeiro código que as usa (`sqlx` e `tokio` no E1.1, `reqwest` no adaptador do Inter).
+**Objetivo:** dar ao projeto uma estrutura que roda testes com um comando.
+**Inclui:** o mínimo para compilar e testar: `Cargo.toml`, `src/lib.rs` e o workflow de CI. Sem banco ainda; o Postgres no CI vem com a primeira migração (E1.1).
+**Pronto quando:** `cargo test` passa no computador e no GitHub.
 **Depende de:** E0.1
 
-### E1.2 Estrutura do projeto e testes automáticos
-**Objetivo:** dar ao projeto uma estrutura que roda testes com um comando.
-**Inclui:** projeto `cargo` com `sqlx`, `tokio` e `reqwest`; migrações em `migrations/` aplicadas pelo `sqlx`; testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas); cache offline do `sqlx` (`.sqlx/`) commitado; e GitHub Actions rodando `cargo fmt --check`, `cargo clippy` e `cargo test` com um Postgres a cada push.
-**Pronto quando:** `cargo test` passa no computador e no GitHub.
-**Depende de:** E1.1
+### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
+**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados). Traz junto o que só faz sentido com uma migração: `sqlx` e `tokio` no `Cargo.toml`, migrações em `migrations/` aplicadas pelo `sqlx`, testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas), cache offline do `sqlx` (`.sqlx/`) commitado e um Postgres no GitHub Actions.
+**Pronto quando:** a migração roda num banco vazio sem erro, e `cargo test` passa com ela no computador e no GitHub.
+**Depende de:** E1.2
 
 ### E1.3 Identificar a organização pelo token (nunca por parâmetro)
 **Objetivo:** o código só descobre a organização a partir de uma credencial.
