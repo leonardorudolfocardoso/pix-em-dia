@@ -25,6 +25,7 @@ Pequenos negócios com cobrança recorrente (o piloto é uma escolinha de esport
 | 17/11/2026 | **Nomes em português** no código e no banco | Produto para o mercado brasileiro |
 | 18/11/2026 | **Linguagem e banco de dados ainda a escolher** (roteiro E0.1); os documentos ficam neutros até lá | A stack precisa permitir mTLS de saída e isolar organizações no próprio banco de dados (por exemplo, Row Level Security do PostgreSQL). Exemplos de tecnologia nos documentos são só exemplos |
 | 17/11/2026 | **Adaptador de banco com interface em termos nossos**: emitir, consultar, cancelar, listar pagamentos | Nada do formato do Inter fora do adaptador; outro banco é outro adaptador |
+| 18/11/2026 | **Escopos `cobv.read` e `cobv.write`, mais `pix.read` com prazo** | Emitir e cancelar usam `cobv.write`; consultar e a baixa usam `cobv.read` (`GET /cobv` concluídas). Na transição, quem paga ainda manda Pix direto na chave, sem `txid`; sem `pix.read` o Em Dia lembraria quem já pagou. Com ele, a baixa lê `GET /pix`, guarda só os Pix sem `txid` e os mostra na lista do dia para uma pessoa ligar à cobrança certa. Depois de uns dois meses sem Pix sem cobrança, o `pix.read` sai da integração no Internet Banking, sem mudar código |
 | 17/11/2026 | **Servidor MCP só depois**, começando por consultas | Criar e cancelar com IA no meio pedem confirmação humana |
 
 ## Fatos da API do Inter (conferidos em 17/11/2026)
@@ -37,12 +38,12 @@ Fonte: [portal do desenvolvedor do Inter](https://developers.inter.co/references
 - **Corpo:** `calendario.dataDeVencimento`, `calendario.validadeAposVencimento`, `valor.original` (texto, ex.: "125.00"), `chave`, `devedor` (objeto obrigatório com campos opcionais; com nome, exige CPF ou CNPJ), `solicitacaoPagador`.
 - **Situações:** `ATIVA`, `CONCLUIDA`, `REMOVIDA_PELO_USUARIO_RECEBEDOR`, `REMOVIDA_PELO_PSP`. Não existe "vencida"; atraso é calculado por nós.
 - **Consultar:** `GET /cobv/{txid}`, `GET /cobv` (por período e situação) e `GET /pix` (Pix recebidos, escopo `pix.read`).
-- **Escopos necessários:** `cobv.read` e `cobv.write` (e `pix.read`, se usarmos `GET /pix`). Nenhum de pagamento ou transferência.
+- **Escopos:** `cobv.write` para criar (`PUT`) e cancelar (`PATCH /cobv/{txid}`); `cobv.read` para consultar; `pix.read` para `GET /pix`; `webhook.read` e `webhook.write` só quando vier o webhook. `pix.write` (devolução) e escopos de pagamento ou transferência nunca.
 - **Limites:** 120 chamadas/min em produção e 10/min no sandbox.
 - **Webhook (para depois):** um por chave Pix (`PUT /webhook/{chave}`), chamado em `URL/pix`, só para pagamentos, com até 4 novas tentativas (20, 30, 60 e 120 min). O Inter se autentica por certificado.
 - **Certificado:** 1 ano em produção, renovável a partir de 90 dias antes do vencimento, mantendo client id e secret. No sandbox vale 30 dias.
 - **Sandbox:** conta própria na comunidade do Inter, funciona de segunda a sexta, das 8h às 20h, e tem endpoint para simular pagamento.
-- **A conferir no sandbox:** se a resposta traz `pixCopiaECola` (o exemplo da documentação só mostra `loc.location`) e se aceita cobrança sem CPF do devedor.
+- **A conferir no sandbox:** se a resposta traz `pixCopiaECola` (o exemplo da documentação só mostra `loc.location`) e se aceita cobrança sem CPF do devedor; se o período de `GET /cobv` filtra pela data de criação (como no padrão do Banco Central) ou de pagamento, e se a resposta traz `pix[].endToEndId`; se `GET /pix` informa o nome de quem pagou.
 
 ## Perguntas em aberto
 

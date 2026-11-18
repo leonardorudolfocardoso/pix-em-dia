@@ -127,6 +127,8 @@ flowchart TD
 
 No intervalo de cada organização (5 min a 1 dia, padrão 60 min) o Em Dia pergunta ao Inter o que foi pago. A rotina acorda a cada 5 minutos e só consulta as organizações cujo intervalo já passou e que têm cobrança aberta. A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
 
+As cobranças pagas vêm de `GET /cobv`. Na transição, a rotina também lê `GET /pix` (escopo `pix.read`, temporário) e guarda só os Pix sem `txid`: quem ainda paga direto na chave. Esses ficam como pagamento sem cobrança até uma pessoa ligá-los à cobrança certa na lista do dia. Sem `pix.read`, esse passo é pulado e o resto funciona igual.
+
 ```mermaid
 sequenceDiagram
   participant J as Rotina baixar
@@ -134,15 +136,19 @@ sequenceDiagram
   participant I as Inter
   participant D as Banco de dados
   J->>A: listar_pagamentos(desde a última execução - 1h)
-  A->>I: GET /cobv pagas (ou GET /pix)
+  A->>I: GET /cobv concluídas
   I-->>A: pagamentos com txid, valor, endToEndId
+  opt pix.read na transição
+    A->>I: GET /pix
+    I-->>A: Pix recebidos; fica só quem não tem txid
+  end
   A-->>J: lista em tipos nossos
   loop cada pagamento
     J->>D: acha cobrança pelo txid
     alt encontrou e valor confere
       J->>D: grava pagamento (único por endToEndId)
       J->>D: situação = paga
-    else txid desconhecido ou valor diferente
+    else sem txid, txid desconhecido ou valor diferente
       J->>D: grava pagamento sem cobrança (sem dono), sem baixa
     end
   end
@@ -161,10 +167,12 @@ flowchart TD
   baixa --> seleciona["Seleciona cobranças abertas:<br/>vencem em até 3 dias ou já venceram"]
   seleciona --> agrupa["Agrupa pelo telefone de contato<br/>avô de 3 netos = 1 mensagem"]
   agrupa --> monta["Monta a mensagem fixa, sem IA:<br/>descrição, valor, vencimento, Pix copia e cola<br/>+ Se você já pagou, está tudo certo"]
-  monta --> alertas["Coloca no topo:<br/>falhas, pagamentos sem dono,<br/>aviso do certificado"]
+  monta --> alertas["Coloca no topo:<br/>falhas, Pix sem cobrança (nome, valor, hora),<br/>aviso do certificado"]
   alertas --> entrega["Entrega a lista"]
   entrega --> humano["Pessoa revisa e envia pelo WhatsApp"]
 ```
+
+Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
 
 Onde a lista aparece (arquivo, página ou Telegram) ainda está em aberto.
 
@@ -181,7 +189,7 @@ stateDiagram-v2
   falhou --> a_emitir: cadastro corrigido
   a_emitir --> cancelada: cancelada antes de ir ao banco
   falhou --> cancelada: alguém desistiu
-  aberta --> paga: baixa encontrou o Pix
+  aberta --> paga: baixa encontrou o Pix<br/>ou pessoa deu baixa à mão
   aberta --> cancelada: alguém cancelou
   aberta --> expirada: rotina baixar viu que passou<br/>o vencimento + dias após vencimento
   paga --> [*]
@@ -237,7 +245,8 @@ erDiagram
   PAGAMENTOS {
     uuid id
     uuid cobranca_id "vazio = pagamento sem dono"
-    text txid "como veio do banco"
+    text txid "como veio do banco; vazio = Pix direto na chave"
+    text pagador_nome "só sem cobrança, se o banco informar"
     bigint valor_centavos
     timestamptz pago_em
     text banco_e2e_id "único: mesmo Pix, um pagamento"
