@@ -3,13 +3,8 @@
 *.key
 *.pem
 *.p12
+*.pfx
+*.jks
 .env
 .env.*
 segredos/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-.pytest_cache/
-dist/

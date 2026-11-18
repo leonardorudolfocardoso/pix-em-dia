@@ -22,7 +22,7 @@ A definir junto com a escolha da linguagem e do banco de dados. Ainda não há c
 - **Dinheiro em centavos inteiros** (`valor_centavos`). Nunca ponto flutuante. Conversão para o formato do banco ("125.00") só no adaptador.
 - **Datas:** data sem hora para vencimento e período (sempre o dia 1 do mês); data e hora com fuso para eventos.
 - **Migrações** em `migrations/NNN_descricao`, só para frente. Não edite uma migração que já foi para a `main`.
-- **Adaptador falso** (`BancoFalso`) imita o comportamento do Inter, inclusive erros, 429 e quedas. Mudou o adaptador real, atualize o falso.
+- **Adaptador falso** (`BancoFalso`) imita o comportamento do Inter, inclusive erros, 429 e quedas. Mudou o adaptador real, atualize o falso. O falso segue o comportamento confirmado do Inter (documentação ou resposta gravada do sandbox), não o que supomos.
 
 ## Testes
 
@@ -34,4 +34,5 @@ A definir junto com a escolha da linguagem e do banco de dados. Ainda não há c
 
 - Uma issue por pull request, pequena o bastante para ser lida de uma vez.
 - Explique no PR o porquê das decisões; o dono do projeto revisa para aprender.
+- Documentação junto com o código: se o PR muda uma decisão ou um processo, atualize no mesmo PR a tabela de decisões em `docs/contexto.md` (com a data) e o diagrama em `docs/processos.md`.
 - Na dúvida entre a issue e a documentação do banco, pare e pergunte em vez de adivinhar.
