@@ -139,7 +139,7 @@ Issues de decisão já abertas:
 
 ### E3.4 Conexão com a planilha da organização
 **Objetivo:** o Em Dia ler e escrever na planilha Google de cada organização com segurança.
-**Inclui:** Google Sheets API com uma conta de serviço (ou federação de identidade da AWS para o Google, sem chave guardada), com a planilha compartilhada só com ela; credencial no Parameter Store; o id da planilha guardado por organização; modelo de planilha com as abas Assinaturas, Avulsas e Vínculos, cada linha com uma coluna `id` estável (não o número da linha) e colunas de situação que só o Em Dia escreve, protegidas contra edição da equipe. Testes com uma planilha falsa em memória, como o `BancoFalso`.
+**Inclui:** Google Sheets API com uma conta de serviço num projeto Google Cloud próprio; cada organização compartilha a planilha com o e-mail da conta de serviço como editora (ela não vê mais nada do Drive); a chave JSON no Parameter Store (`SecureString`), legível só pelo papel do Lambda, trocada uma vez por ano junto com o certificado do Inter; token de acesso de 1 hora com o escopo `spreadsheets`; o id da planilha guardado por organização; modelo de planilha com as abas Assinaturas, Avulsas e Vínculos, cada linha com uma coluna `id` estável (não o número da linha) e colunas de situação que só o Em Dia escreve, protegidas contra edição da equipe. Testes com uma planilha falsa em memória, como o `BancoFalso`.
 **Pronto quando:** a rotina lê as três abas de uma planilha de teste, escreve uma situação e não altera nenhuma outra coluna.
 **Depende de:** E0.2, E1.3, E2.2
 
@@ -184,6 +184,7 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
+- **Federação de identidade da AWS para o Google** no acesso à planilha, sem chave guardada.
 - **Página web no lugar da planilha**, quando os fluxos da planilha estiverem provados (servida pelo próprio Lambda, com o acesso por token da E1.3).
 - **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
