@@ -22,13 +22,16 @@ Issues de decisão já abertas:
 **Inclui:** comparar as opções (por exemplo Python, TypeScript ou Go) pelo que o produto exige: cliente HTTPS com certificado (mTLS) e cache de token OAuth, rotinas agendadas (emitir, baixar, lista do dia), dinheiro em centavos inteiros, testes de idempotência simples de escrever e código fácil de revisar para quem está aprendendo. No banco de dados: isolamento por organização garantido pelo próprio banco (por exemplo, Row Level Security no Postgres) e restrições `UNIQUE` contra duplicata.
 **Pronto quando:** a escolha e o motivo estão registrados nas decisões de [contexto.md](contexto.md), e o README e o AGENTS.md trazem os comandos de instalar e testar.
 
+### E0.2 Escolher a interface ✓
+**Feito em 18/11/2026:** no piloto, a interface é a **planilha Google que a equipe já usa**, com abas para assinaturas, cobranças avulsas e vínculos de Pix sem cobrança. O Em Dia lê a planilha numa rotina, mantém o próprio registro e só escreve nas colunas de situação. Depois do protótipo, uma interface com autenticação própria pode substituir a planilha. Motivo nas decisões de [contexto.md](contexto.md).
+
 ---
 
 ## Etapa 1: base, sem banco real
 
 ### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
 **Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
-**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `intervalo_baixa_min` (5 a 1440, padrão 60) e `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
 **Pronto quando:** a migração roda num banco vazio sem erro.
 **Depende de:** E0.1
 
@@ -40,13 +43,13 @@ Issues de decisão já abertas:
 
 ### E1.3 Identificar a organização pelo token (nunca por parâmetro)
 **Objetivo:** o código só descobre a organização a partir de uma credencial.
-**Inclui:** `Contexto` criado só por `autenticar(token)`; a conexão informa a organização ao banco de dados para o isolamento (`app.organizacao_id`, lido pelas políticas de RLS); um usuário de banco sem superpoderes para o app.
+**Inclui:** `Contexto` criado só por `autenticar(token)` (para uma futura página web ou API) ou pela rotina agendada, que percorre as organizações uma a uma; a organização é informada ao banco **a cada transação** (`set_config('app.organizacao_id', ..., true)`, equivalente a `SET LOCAL`), lida pelas políticas de RLS, para funcionar com o pool de conexões do Neon; um usuário de banco sem superpoderes para o app.
 **Pronto quando:** um teste prova que a organização A não lê nem grava nada da organização B, mesmo numa consulta sem filtro de organização.
 **Depende de:** E1.2
 
 ### E1.4 Criar uma organização e emitir o token dela
 **Objetivo:** ter um jeito seguro de cadastrar uma organização nova.
-**Inclui:** comando de administração que cria a organização (nome, chave Pix, dias após vencimento, intervalo da baixa), gera um token aleatório, mostra o token uma única vez e grava só o hash dele. Também permite trocar o token, invalidando o anterior.
+**Inclui:** comando de administração que cria a organização (nome, chave Pix, dias após vencimento), gera um token aleatório, mostra o token uma única vez e grava só o hash dele. Também permite trocar o token, invalidando o anterior.
 **Pronto quando:** testes mostram que o token gerado autentica a organização certa, que o token não fica gravado em texto puro e que, depois da troca, o token antigo não funciona mais.
 **Depende de:** E1.3
 
@@ -64,8 +67,8 @@ Issues de decisão já abertas:
 
 ### E1.7 Rotina de emissão mensal idempotente
 **Objetivo:** gerar uma cobrança por assinatura ativa no período, sem nunca duplicar.
-**Inclui:** comando `emitir --periodo 2026-12`; grava a cobrança primeiro (`a_emitir`) e depois chama o banco; erros do banco viram `falhou` com o motivo em `motivo_falha`.
-**Pronto quando:** testes provam uma cobrança por assinatura em três cenários: rodar duas vezes seguidas, queda entre o banco e a gravação, e 429 no meio.
+**Inclui:** comando `emitir --periodo 2026-12`; grava a cobrança primeiro (`a_emitir`) e depois chama o banco; erros do banco viram `falhou` com o motivo em `motivo_falha`. Processa em lotes com limite de tempo: cada execução para antes de 15 minutos (limite do Lambda) e a próxima continua das que ficaram em `a_emitir`.
+**Pronto quando:** testes provam uma cobrança por assinatura em quatro cenários: rodar duas vezes seguidas, queda entre o banco e a gravação, 429 no meio, e execução interrompida pelo limite de tempo e retomada.
 **Depende de:** E1.3, E1.5, E1.6
 
 ### E1.8 Cobranças avulsas
@@ -107,9 +110,9 @@ Issues de decisão já abertas:
 **Pronto quando:** rodar duas vezes cria exatamente uma cobrança por assinatura no sandbox.
 **Depende de:** E1.7, E2.4
 
-### E2.6 Baixa automática com intervalo configurável
+### E2.6 Baixa automática diária
 **Objetivo:** marcar cobranças como pagas sem ninguém conferir à mão.
-**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda a cada 5 minutos mas só consulta o banco das organizações cujo `intervalo_baixa_min` já passou desde `ultima_baixa_em`; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
+**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda toda manhã antes da lista do dia e consulta o banco das organizações com cobrança aberta, desde a `ultima_baixa_em` de cada uma; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
 **Pronto quando:** um pagamento simulado no sandbox vira `paga`, o mesmo pagamento visto duas vezes não duplica, e um teste mostra a cobrança vencida há mais que o prazo virando `expirada`.
 **Depende de:** E2.4
 
@@ -120,7 +123,7 @@ Issues de decisão já abertas:
 ### E3.1 Lista diária de lembretes
 **Objetivo:** uma pessoa saber, todo dia, quem lembrar e o que mandar.
 **Inclui:** cobranças abertas que vencem em até 3 dias ou já venceram; agrupadas por telefone de contato; mensagem de modelo fixo (sem IA) com o copia e cola e a nota "Se você já pagou, está tudo certo; a confirmação pode levar alguns minutos para aparecer aqui."; uma baixa roda antes de montar a lista. Nada é enviado automaticamente.
-**Em aberto:** onde a lista aparece (arquivo, página ou Telegram).
+**Onde aparece:** a definir entre uma aba da planilha (E3.4) escrita pelo Em Dia ou outro canal; veja as perguntas em aberto de [contexto.md](contexto.md).
 **Depende de:** E2.6, [issue #3](https://github.com/leonardorudolfocardoso/pix-em-dia/issues/3) (se a resposta da cobv traz `pixCopiaECola`)
 
 ### E3.2 Alertas: certificado, falhas e pagamentos sem dono
@@ -134,16 +137,35 @@ Issues de decisão já abertas:
 **Pronto quando:** teste de idempotência: cancelar duas vezes dá o mesmo resultado, e uma queda entre o banco e a gravação se completa na próxima tentativa sem erro.
 **Depende de:** E2.4
 
-### E3.4 Importar assinaturas de uma planilha
-**Objetivo:** cadastrar as assinaturas sem digitar uma a uma.
-**Inclui:** importar CSV/XLSX com descrição, referência externa, valor, dia de vencimento e contato; reimportar atualiza em vez de duplicar (pela referência externa). Testes só com dados fictícios.
-**Depende de:** E1.3
+### E3.4 Conexão com a planilha da organização
+**Objetivo:** o Em Dia ler e escrever na planilha Google de cada organização com segurança.
+**Inclui:** Google Sheets API com uma conta de serviço num projeto Google Cloud próprio; cada organização compartilha a planilha com o e-mail da conta de serviço como editora (ela não vê mais nada do Drive); a chave JSON no Parameter Store (`SecureString`), legível só pelo papel do Lambda, trocada uma vez por ano junto com o certificado do Inter; token de acesso de 1 hora com o escopo `spreadsheets`; o id da planilha guardado por organização; modelo de planilha com as abas Assinaturas, Avulsas e Vínculos, cada linha com uma coluna `id` estável (não o número da linha) e colunas de situação que só o Em Dia escreve, protegidas contra edição da equipe. Testes com uma planilha falsa em memória, como o `BancoFalso`.
+**Pronto quando:** a rotina lê as três abas de uma planilha de teste, escreve uma situação e não altera nenhuma outra coluna.
+**Depende de:** E0.2, E1.3, E2.2
 
 ### E3.5 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. **Em aberto:** a rotina `baixar` que acorda a cada 5 minutos consulta o banco toda vez, então o Neon nunca dorme e sai da camada gratuita (cerca de US$ 9/mês). Alternativa a decidir: uma agenda do EventBridge por organização, com o intervalo dela. Conferir a retenção de histórico do Neon como backup.
-**Pronto quando:** um `deploy` sobe tudo do zero e as três rotinas rodam no horário no sandbox.
+**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã, nessa ordem), ler a planilha (de hora em hora, das 8h às 20h), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. Acompanhar o consumo de computação do Neon (a baixa diária e as leituras da planilha devem usar umas 8 das 100 horas gratuitas por mês); desenvolvimento e testes usam outro projeto no Neon, com cota própria. Conferir a retenção de histórico do Neon como backup.
+**Pronto quando:** um `deploy` sobe tudo do zero e as rotinas rodam no horário no sandbox.
 **Depende de:** E2.6, E3.1
+
+### E3.6 Ler as assinaturas da planilha
+**Objetivo:** a planilha continua sendo a lista mestra de assinaturas, sem ninguém mudar o hábito.
+**Inclui:** rotina agendada que lê a aba Assinaturas (descrição, referência externa, valor, dia de vencimento, contato, ativa) e atualiza o registro do Em Dia pela referência externa, sem duplicar; cada linha recebe na coluna de situação "ok" ou o problema encontrado (valor inválido, referência repetida, telefone vazio), em vez de falhar em silêncio. Linha apagada da planilha não apaga nada: a assinatura fica inativa e as cobranças continuam no histórico. Testes só com dados fictícios.
+**Pronto quando:** ler a mesma planilha duas vezes não muda nada, uma linha com erro aparece marcada e não para as outras, e uma alteração de valor vale a partir da próxima emissão.
+**Depende de:** E3.4
+
+### E3.7 Dar baixa à mão pela aba Vínculos
+**Objetivo:** ligar um Pix sem cobrança (ou um pagamento em dinheiro) à cobrança certa, para quem já pagou sair da lista.
+**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança (ou o `id` de uma linha "pago no balcão" da aba Avulsas), ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `banco_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
+**Pronto quando:** testes de idempotência (ler a mesma linha duas vezes não duplica nem muda nada), não deixa ligar um pagamento a uma cobrança já paga (a linha fica marcada com o motivo), e a cobrança some da próxima lista.
+**Depende de:** E2.6, E3.4
+
+### E3.8 Criar cobrança avulsa pela aba Avulsas
+**Objetivo:** criar uma cobrança única, para uma assinatura ou um grupo, sem precisar de quem programa.
+**Inclui:** a cada leitura da planilha, cada linha nova da aba Avulsas (descrição, valor, vencimento, referências das assinaturas) vira cobrança por `criar_cobranca_avulsa` (E1.8), com a chave de idempotência `planilha:<id da linha>:<referência>`; a coluna de situação mostra "emitida", "falhou" e o motivo, ou o Pix copia e cola. Editar uma linha já emitida não muda a cobrança: a coluna de situação avisa e a correção é cancelar (E3.3) e criar outra linha. **Venda no balcão** (quem compra quer pagar na hora): a pessoa paga direto na chave Pix e a linha é marcada como "pago no balcão"; o Em Dia não emite Pix para ela, e o pagamento, que chega como Pix sem cobrança, é ligado à linha na aba Vínculos (E3.7), criando a cobrança já `paga`.
+**Pronto quando:** ler a mesma linha duas vezes cria uma cobrança só por assinatura, emitida no banco como as outras.
+**Depende de:** E1.8, E2.4, E3.4
 
 ---
 
@@ -162,6 +184,9 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
+- **Botão "Gerar Pix" na planilha** para venda no balcão: um Apps Script chama uma Function URL do Lambda só com "processe a organização X agora" (sem dados, com segredo e limite de chamadas); o Em Dia lê a planilha pela conta de serviço, emite a cobrança vencendo no dia e escreve o copia e cola na linha em segundos.
+- **Interface própria no lugar da planilha**, com autenticação própria, quando os fluxos da planilha estiverem provados no protótipo.
+- **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
 - **Servidor MCP** com `consultar_cobranca` e `listar_atrasadas` primeiro; criar e cancelar só com confirmação.
 - **Pix Automático** para quem topar o débito recorrente.

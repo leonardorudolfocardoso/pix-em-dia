@@ -51,11 +51,11 @@ Três rotinas agendadas falam com o banco só por meio do adaptador. Ninguém de
 
 ```mermaid
 flowchart LR
-  planilha["Planilha ou sistema<br/>da organização"] -->|importa assinaturas| emdia
+  planilha["Planilha Google<br/>da organização"] <-->|lê assinaturas, avulsas e vínculos;<br/>escreve situação| emdia
   subgraph emdia["Em Dia"]
     direction TB
     emitir["Rotina: emitir<br/>dia 1 do mês"]
-    baixar["Rotina: baixar<br/>intervalo por organização<br/>(padrão 60 min)"]
+    baixar["Rotina: baixar<br/>toda manhã, antes da lista"]
     lista["Rotina: lista do dia<br/>toda manhã"]
     db[("Banco de dados<br/>isolado por organização")]
     adaptador["Adaptador do banco"]
@@ -125,7 +125,7 @@ flowchart TD
 
 ## Baixa automática
 
-No intervalo de cada organização (5 min a 1 dia, padrão 60 min) o Em Dia pergunta ao Inter o que foi pago. A rotina acorda a cada 5 minutos e só consulta as organizações cujo intervalo já passou e que têm cobrança aberta. A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
+Toda manhã, logo antes de montar a lista do dia, o Em Dia pergunta ao Inter o que foi pago, só para as organizações que têm cobrança aberta. Uma vez por dia basta porque a lista é a única coisa que depende disso, e mantém o banco de dados na camada gratuita do Neon (veja [contexto](contexto.md)). A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
 
 As cobranças pagas vêm de `GET /cobv`. Na transição, a rotina também lê `GET /pix` (escopo `pix.read`, temporário) e guarda só os Pix sem `txid`: quem ainda paga direto na chave. Esses ficam como pagamento sem cobrança até uma pessoa ligá-los à cobrança certa na lista do dia. Sem `pix.read`, esse passo é pulado e o resto funciona igual.
 
@@ -172,9 +172,9 @@ flowchart TD
   entrega --> humano["Pessoa revisa e envia pelo WhatsApp"]
 ```
 
-Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
+Antes de enviar, a pessoa liga cada Pix sem cobrança à cobrança certa na aba Vínculos da planilha ("dar baixa à mão"), e quem já pagou sai da lista. A mesma ação serve para pagamento em dinheiro.
 
-Onde a lista aparece (arquivo, página ou Telegram) ainda está em aberto.
+Onde a lista aparece é decidido no item E0.2 do [roteiro](roteiro.md).
 
 
 ## Ciclo de vida de uma cobrança
@@ -215,7 +215,6 @@ erDiagram
     text chave_pix
     smallint dias_apos_vencimento
     date certificado_vence_em
-    smallint intervalo_baixa_min "5 a 1440, padrão 60"
     timestamptz ultima_baixa_em
   }
   ASSINATURAS {
