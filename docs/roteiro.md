@@ -8,21 +8,27 @@ Rótulos propostos: `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-
 
 ## Etapa 1: base, sem banco real
 
-### #1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
-**Objetivo:** criar as quatro tabelas, com isolamento por organização (RLS).
-**Inclui:** `migrations/001_inicial.sql` (rascunho em revisão): cobranças recorrentes e avulsas na mesma tabela, `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata e a função `autenticar_organizacao`.
-**Pronto quando:** a migração roda num Postgres vazio sem erro.
+### #0 Escolher a stack
+**Objetivo:** decidir a linguagem e o banco de dados antes de escrever código.
+**Inclui:** comparar as opções (por exemplo Python, TypeScript ou Go) pelo que o produto exige: cliente HTTPS com certificado (mTLS) e cache de token OAuth, rotinas agendadas (emitir, baixar, lista do dia), dinheiro em centavos inteiros, testes de idempotência simples de escrever e código fácil de revisar para quem está aprendendo. No banco de dados: isolamento por organização garantido pelo próprio banco (por exemplo, Row Level Security no Postgres) e restrições `UNIQUE` contra duplicata.
+**Pronto quando:** a escolha e o motivo estão registrados nas decisões de [contexto.md](contexto.md), e o README e o AGENTS.md trazem os comandos de instalar e testar.
 
-### #2 Estrutura do projeto Python e testes automáticos
+### #1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
+**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo banco de dados (por exemplo, Row Level Security no Postgres).
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata e a função `autenticar_organizacao`.
+**Pronto quando:** a migração roda num banco vazio sem erro.
+**Depende de:** #0
+
+### #2 Estrutura do projeto e testes automáticos
 **Objetivo:** dar ao projeto uma estrutura que roda testes com um comando.
-**Inclui:** `pyproject.toml` (uv), pasta `src/emdia`, `pytest`, um Postgres de teste que aplica as migrações, e GitHub Actions rodando os testes a cada push.
-**Pronto quando:** `uv run pytest` passa no computador e no GitHub.
+**Inclui:** gerenciador de dependências e estrutura de pastas da stack escolhida na #0, um banco de teste que aplica as migrações, e GitHub Actions rodando os testes a cada push.
+**Pronto quando:** um único comando roda os testes, e eles passam no computador e no GitHub.
 **Depende de:** #1
 
 ### #3 Identificar a organização pelo token (nunca por parâmetro)
 **Objetivo:** o código só descobre a organização a partir de uma credencial.
-**Inclui:** `Contexto` criado só por `autenticar(token)`; a conexão grava `app.organizacao_id` para o RLS; um usuário de banco sem superpoderes para o app.
-**Pronto quando:** um teste prova que a organização A não lê nem grava nada da organização B, mesmo com `SELECT` sem filtro.
+**Inclui:** `Contexto` criado só por `autenticar(token)`; a conexão informa a organização ao banco de dados para o isolamento (por exemplo, `app.organizacao_id` lido pelo RLS no Postgres); um usuário de banco sem superpoderes para o app.
+**Pronto quando:** um teste prova que a organização A não lê nem grava nada da organização B, mesmo numa consulta sem filtro de organização.
 **Depende de:** #2
 
 ### #4 txid determinístico
@@ -39,7 +45,7 @@ Rótulos propostos: `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-
 
 ### #6 Job de emissão mensal idempotente
 **Objetivo:** gerar uma cobrança por assinatura ativa no período, sem nunca duplicar.
-**Inclui:** `python -m emdia emitir --periodo 2026-12`; grava a cobrança primeiro (`a_emitir`) e depois chama o banco; erros do banco viram `falhou` com o motivo.
+**Inclui:** comando `emitir --periodo 2026-12`; grava a cobrança primeiro (`a_emitir`) e depois chama o banco; erros do banco viram `falhou` com o motivo.
 **Pronto quando:** testes provam uma cobrança por assinatura em três cenários: rodar duas vezes seguidas, queda entre o banco e a gravação, e 429 no meio.
 **Depende de:** #3, #4, #5
 
@@ -84,7 +90,7 @@ Rótulos propostos: `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-
 
 ### #12 Baixa automática com intervalo configurável
 **Objetivo:** marcar cobranças como pagas sem ninguém conferir à mão.
-**Inclui:** `listar_pagamentos` no adaptador Inter; `python -m emdia baixar`, que roda a cada 5 minutos mas só consulta o banco das organizações cujo `intervalo_baixa_min` (5 min a 1 dia, padrão 60) já passou desde `ultima_baixa_em`; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente vai para o relatório, sem baixa.
+**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda a cada 5 minutos mas só consulta o banco das organizações cujo `intervalo_baixa_min` (5 min a 1 dia, padrão 60) já passou desde `ultima_baixa_em`; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente vai para o relatório, sem baixa.
 **Pronto quando:** um pagamento simulado no sandbox vira `paga` e o mesmo pagamento visto duas vezes não duplica.
 **Depende de:** #10
 
@@ -110,7 +116,7 @@ Rótulos propostos: `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-
 
 ### #16 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** escolher onde roda (VPS ou serviço de jobs), Postgres, cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 5 min, consultando só as organizações cujo intervalo já passou) e lista (todo dia de manhã), e backup do banco.
+**Inclui:** escolher onde roda (VPS ou serviço de jobs), banco de dados, cofre de segredos de produção, agendamento de emitir (dia 1), baixar (a cada 5 min, consultando só as organizações cujo intervalo já passou) e lista (todo dia de manhã), e backup do banco.
 **Depende de:** #12, #13
 
 ---
