@@ -23,7 +23,7 @@ Issues de decisão já abertas:
 **Pronto quando:** a escolha e o motivo estão registrados nas decisões de [contexto.md](contexto.md), e o README e o AGENTS.md trazem os comandos de instalar e testar.
 
 ### E0.2 Escolher a interface ✓
-**Feito em 18/11/2026:** no piloto, a interface é a **planilha Google que a equipe já usa**, com abas para assinaturas, cobranças avulsas e vínculos de Pix sem cobrança. O Em Dia lê a planilha numa rotina, mantém o próprio registro e só escreve nas colunas de situação. Uma página web pode substituir a planilha depois, quando os fluxos estiverem provados. Motivo nas decisões de [contexto.md](contexto.md).
+**Feito em 18/11/2026:** no piloto, a interface é a **planilha Google que a equipe já usa**, com abas para assinaturas, cobranças avulsas e vínculos de Pix sem cobrança. O Em Dia lê a planilha numa rotina, mantém o próprio registro e só escreve nas colunas de situação. Depois do protótipo, uma interface com autenticação própria pode substituir a planilha. Motivo nas decisões de [contexto.md](contexto.md).
 
 ---
 
@@ -184,8 +184,7 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
-- **Federação de identidade da AWS para o Google** no acesso à planilha, sem chave guardada.
-- **Página web no lugar da planilha**, quando os fluxos da planilha estiverem provados (servida pelo próprio Lambda, com o acesso por token da E1.3).
+- **Interface própria no lugar da planilha**, com autenticação própria, quando os fluxos da planilha estiverem provados no protótipo.
 - **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
 - **Servidor MCP** com `consultar_cobranca` e `listar_atrasadas` primeiro; criar e cancelar só com confirmação.
