@@ -28,7 +28,7 @@ Issues de decisão já abertas:
 
 ### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
 **Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
-**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `intervalo_baixa_min` (5 a 1440, padrão 60) e `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados).
 **Pronto quando:** a migração roda num banco vazio sem erro.
 **Depende de:** E0.1
 
@@ -46,7 +46,7 @@ Issues de decisão já abertas:
 
 ### E1.4 Criar uma organização e emitir o token dela
 **Objetivo:** ter um jeito seguro de cadastrar uma organização nova.
-**Inclui:** comando de administração que cria a organização (nome, chave Pix, dias após vencimento, intervalo da baixa), gera um token aleatório, mostra o token uma única vez e grava só o hash dele. Também permite trocar o token, invalidando o anterior.
+**Inclui:** comando de administração que cria a organização (nome, chave Pix, dias após vencimento), gera um token aleatório, mostra o token uma única vez e grava só o hash dele. Também permite trocar o token, invalidando o anterior.
 **Pronto quando:** testes mostram que o token gerado autentica a organização certa, que o token não fica gravado em texto puro e que, depois da troca, o token antigo não funciona mais.
 **Depende de:** E1.3
 
@@ -107,9 +107,9 @@ Issues de decisão já abertas:
 **Pronto quando:** rodar duas vezes cria exatamente uma cobrança por assinatura no sandbox.
 **Depende de:** E1.7, E2.4
 
-### E2.6 Baixa automática com intervalo configurável
+### E2.6 Baixa automática a cada 15 minutos
 **Objetivo:** marcar cobranças como pagas sem ninguém conferir à mão.
-**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda a cada 5 minutos mas só consulta o banco das organizações cujo `intervalo_baixa_min` já passou desde `ultima_baixa_em`; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
+**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda a cada 15 minutos e consulta o banco das organizações com cobrança aberta, desde a `ultima_baixa_em` de cada uma; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
 **Pronto quando:** um pagamento simulado no sandbox vira `paga`, o mesmo pagamento visto duas vezes não duplica, e um teste mostra a cobrança vencida há mais que o prazo virando `expirada`.
 **Depende de:** E2.4
 
@@ -141,7 +141,7 @@ Issues de decisão já abertas:
 
 ### E3.5 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. **Em aberto:** a rotina `baixar` que acorda a cada 5 minutos consulta o banco toda vez, então o Neon nunca dorme e sai da camada gratuita (cerca de US$ 9/mês). Alternativa a decidir: uma agenda do EventBridge por organização, com o intervalo dela. Conferir a retenção de histórico do Neon como backup.
+**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar (a cada 15 minutos) e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. Acompanhar o consumo de computação do Neon (a baixa a cada 15 minutos usa cerca de 60 das 100 horas gratuitas por mês); desenvolvimento e testes usam outro projeto no Neon, com cota própria. Conferir a retenção de histórico do Neon como backup.
 **Pronto quando:** um `deploy` sobe tudo do zero e as três rotinas rodam no horário no sandbox.
 **Depende de:** E2.6, E3.1
 
@@ -162,6 +162,7 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
+- **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
 - **Servidor MCP** com `consultar_cobranca` e `listar_atrasadas` primeiro; criar e cancelar só com confirmação.
 - **Pix Automático** para quem topar o débito recorrente.
