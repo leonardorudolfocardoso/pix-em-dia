@@ -55,7 +55,7 @@ flowchart LR
   subgraph emdia["Em Dia"]
     direction TB
     emitir["Rotina: emitir<br/>dia 1 do mês"]
-    baixar["Rotina: baixar<br/>a cada 15 min"]
+    baixar["Rotina: baixar<br/>toda manhã, antes da lista"]
     lista["Rotina: lista do dia<br/>toda manhã"]
     db[("Banco de dados<br/>isolado por organização")]
     adaptador["Adaptador do banco"]
@@ -125,7 +125,7 @@ flowchart TD
 
 ## Baixa automática
 
-A cada 15 minutos o Em Dia pergunta ao Inter o que foi pago, só para as organizações que têm cobrança aberta. O intervalo é fixo para manter o banco de dados na camada gratuita do Neon (veja [contexto](contexto.md)). A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
+Toda manhã, logo antes de montar a lista do dia, o Em Dia pergunta ao Inter o que foi pago, só para as organizações que têm cobrança aberta. Uma vez por dia basta porque a lista é a única coisa que depende disso, e mantém o banco de dados na camada gratuita do Neon (veja [contexto](contexto.md)). A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
 
 As cobranças pagas vêm de `GET /cobv`. Na transição, a rotina também lê `GET /pix` (escopo `pix.read`, temporário) e guarda só os Pix sem `txid`: quem ainda paga direto na chave. Esses ficam como pagamento sem cobrança até uma pessoa ligá-los à cobrança certa na lista do dia. Sem `pix.read`, esse passo é pulado e o resto funciona igual.
 

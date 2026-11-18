@@ -110,9 +110,9 @@ Issues de decisão já abertas:
 **Pronto quando:** rodar duas vezes cria exatamente uma cobrança por assinatura no sandbox.
 **Depende de:** E1.7, E2.4
 
-### E2.6 Baixa automática a cada 15 minutos
+### E2.6 Baixa automática diária
 **Objetivo:** marcar cobranças como pagas sem ninguém conferir à mão.
-**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda a cada 15 minutos e consulta o banco das organizações com cobrança aberta, desde a `ultima_baixa_em` de cada uma; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
+**Inclui:** `listar_pagamentos` no adaptador Inter; comando `baixar`, que roda toda manhã antes da lista do dia e consulta o banco das organizações com cobrança aberta, desde a `ultima_baixa_em` de cada uma; organizações sem cobrança aberta não consultam; janela de sobra de 1 hora e varredura diária dos últimos 7 dias; pagamento com txid desconhecido ou valor diferente é gravado em `pagamentos` com `cobranca_id` vazio, sem baixa, para o relatório e os alertas; cobranças abertas cujo vencimento mais `dias_apos_vencimento` já passou viram `expirada`.
 **Pronto quando:** um pagamento simulado no sandbox vira `paga`, o mesmo pagamento visto duas vezes não duplica, e um teste mostra a cobrança vencida há mais que o prazo virando `expirada`.
 **Depende de:** E2.4
 
@@ -145,7 +145,7 @@ Issues de decisão já abertas:
 
 ### E3.5 Hospedagem e agendamento
 **Objetivo:** rodar sozinho, todo dia, num lugar seguro.
-**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar (a cada 15 minutos), ler a planilha e lista (todo dia de manhã), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. Acompanhar o consumo de computação do Neon (a baixa a cada 15 minutos usa cerca de 60 das 100 horas gratuitas por mês); desenvolvimento e testes usam outro projeto no Neon, com cota própria. Conferir a retenção de histórico do Neon como backup.
+**Inclui:** infraestrutura como código em `sa-east-1`: funções Lambda (Rust com `cargo lambda`, fora de VPC), agendas no EventBridge Scheduler para emitir (dia 1), baixar e lista (todo dia de manhã, nessa ordem), ler a planilha (de hora em hora, das 8h às 20h), Parameter Store para os segredos, papel IAM mínimo, banco no Neon (São Paulo) e alertas de falha das funções. Acompanhar o consumo de computação do Neon (a baixa diária e as leituras da planilha devem usar umas 8 das 100 horas gratuitas por mês); desenvolvimento e testes usam outro projeto no Neon, com cota própria. Conferir a retenção de histórico do Neon como backup.
 **Pronto quando:** um `deploy` sobe tudo do zero e as rotinas rodam no horário no sandbox.
 **Depende de:** E2.6, E3.1
 
@@ -157,13 +157,13 @@ Issues de decisão já abertas:
 
 ### E3.7 Dar baixa à mão pela aba Vínculos
 **Objetivo:** ligar um Pix sem cobrança (ou um pagamento em dinheiro) à cobrança certa, para quem já pagou sair da lista.
-**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança, ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `banco_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
+**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança (ou o `id` de uma linha "pago no balcão" da aba Avulsas), ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `banco_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
 **Pronto quando:** testes de idempotência (ler a mesma linha duas vezes não duplica nem muda nada), não deixa ligar um pagamento a uma cobrança já paga (a linha fica marcada com o motivo), e a cobrança some da próxima lista.
 **Depende de:** E2.6, E3.4
 
 ### E3.8 Criar cobrança avulsa pela aba Avulsas
 **Objetivo:** criar uma cobrança única, para uma assinatura ou um grupo, sem precisar de quem programa.
-**Inclui:** cada linha nova da aba Avulsas (descrição, valor, vencimento, referências das assinaturas) vira cobrança por `criar_cobranca_avulsa` (E1.8), com a chave de idempotência `planilha:<id da linha>:<referência>`; a coluna de situação mostra "emitida", "falhou" e o motivo, ou o Pix copia e cola. Editar uma linha já emitida não muda a cobrança: a coluna de situação avisa e a correção é cancelar (E3.3) e criar outra linha.
+**Inclui:** a cada leitura da planilha, cada linha nova da aba Avulsas (descrição, valor, vencimento, referências das assinaturas) vira cobrança por `criar_cobranca_avulsa` (E1.8), com a chave de idempotência `planilha:<id da linha>:<referência>`; a coluna de situação mostra "emitida", "falhou" e o motivo, ou o Pix copia e cola. Editar uma linha já emitida não muda a cobrança: a coluna de situação avisa e a correção é cancelar (E3.3) e criar outra linha. **Venda no balcão** (quem compra quer pagar na hora): a pessoa paga direto na chave Pix e a linha é marcada como "pago no balcão"; o Em Dia não emite Pix para ela, e o pagamento, que chega como Pix sem cobrança, é ligado à linha na aba Vínculos (E3.7), criando a cobrança já `paga`.
 **Pronto quando:** ler a mesma linha duas vezes cria uma cobrança só por assinatura, emitida no banco como as outras.
 **Depende de:** E1.8, E2.4, E3.4
 
@@ -184,6 +184,7 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
+- **Botão "Gerar Pix" na planilha** para venda no balcão: um Apps Script chama uma Function URL do Lambda só com "processe a organização X agora" (sem dados, com segredo e limite de chamadas); o Em Dia lê a planilha pela conta de serviço, emite a cobrança vencendo no dia e escreve o copia e cola na linha em segundos.
 - **Interface própria no lugar da planilha**, com autenticação própria, quando os fluxos da planilha estiverem provados no protótipo.
 - **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
