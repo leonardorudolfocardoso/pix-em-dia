@@ -7,7 +7,7 @@ Cobrança por Pix para pequenos negócios: mensalidades e cobranças avulsas, co
 ## O que faz
 
 - **Emite cobranças Pix com vencimento**, recorrentes (uma por assinatura por mês) ou avulsas (uma cobrança única, para uma pessoa ou um grupo).
-- **Dá baixa sozinho:** consulta o banco a cada 15 minutos e marca o que foi pago.
+- **Dá baixa sozinho:** consulta o banco periodicamente (intervalo por organização, padrão 60 minutos) e marca o que foi pago.
 - **Monta a lista do dia** com quem lembrar e a mensagem pronta, com o Pix copia e cola. Uma pessoa envia; o Em Dia não manda mensagens.
 
 ## Princípios

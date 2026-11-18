@@ -55,7 +55,7 @@ flowchart LR
   subgraph emdia["Em Dia"]
     direction TB
     emitir["Rotina: emitir<br/>dia 1 do mês"]
-    baixar["Rotina: baixar<br/>a cada 15 min"]
+    baixar["Rotina: baixar<br/>intervalo por organização<br/>(padrão 60 min)"]
     lista["Rotina: lista do dia<br/>toda manhã"]
     db[("Postgres<br/>isolado por organização")]
     adaptador["Adaptador do banco"]
@@ -125,7 +125,7 @@ flowchart TD
 
 ## Baixa automática
 
-A cada 15 minutos o Em Dia pergunta ao Inter o que foi pago. A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
+No intervalo de cada organização (5 min a 1 dia, padrão 60 min) o Em Dia pergunta ao Inter o que foi pago. A rotina acorda a cada 5 minutos e só consulta as organizações cujo intervalo já passou e que têm cobrança aberta. A janela olha uma hora para trás, então um pagamento pode ser visto duas vezes, e isso não faz mal.
 
 ```mermaid
 sequenceDiagram
