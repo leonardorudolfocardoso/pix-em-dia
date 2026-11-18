@@ -57,7 +57,7 @@ flowchart LR
     emitir["Rotina: emitir<br/>dia 1 do mês"]
     baixar["Rotina: baixar<br/>intervalo por organização<br/>(padrão 60 min)"]
     lista["Rotina: lista do dia<br/>toda manhã"]
-    db[("Postgres<br/>isolado por organização")]
+    db[("Banco de dados<br/>isolado por organização")]
     adaptador["Adaptador do banco"]
     emitir --> db
     baixar --> db
@@ -81,10 +81,10 @@ Primeiro grava a cobrança no nosso banco, depois pede ao Inter. Como o `txid` �
 sequenceDiagram
   autonumber
   participant J as Rotina emitir
-  participant D as Postgres
+  participant D as Banco de dados
   participant A as Adaptador
   participant I as Inter
-  J->>D: para cada assinatura ativa:<br/>INSERT cobrança (a_emitir, txid calculado)<br/>ON CONFLICT DO NOTHING
+  J->>D: para cada assinatura ativa:<br/>grava cobrança (a_emitir, txid calculado)<br/>se já existir, não faz nada
   Note over D: já existe? nada muda.<br/>Uma por assinatura por período.
   J->>D: lista cobranças em a_emitir
   loop cada cobrança, até 100 por minuto
@@ -132,7 +132,7 @@ sequenceDiagram
   participant J as Rotina baixar
   participant A as Adaptador
   participant I as Inter
-  participant D as Postgres
+  participant D as Banco de dados
   J->>A: listar_pagamentos(desde a última execução - 1h)
   A->>I: GET /cobv pagas (ou GET /pix)
   I-->>A: pagamentos com txid, valor, endToEndId
@@ -140,7 +140,7 @@ sequenceDiagram
   loop cada pagamento
     J->>D: acha cobrança pelo txid
     alt encontrou e valor confere
-      J->>D: INSERT pagamento (único por endToEndId)
+      J->>D: grava pagamento (único por endToEndId)
       J->>D: situação = paga
     else txid desconhecido ou valor diferente
       J->>D: registra para o relatório, sem baixa
@@ -189,7 +189,7 @@ stateDiagram-v2
 
 ## Modelo de dados
 
-Quatro tabelas, nenhuma com termos de escolinha. Toda tabela de dados tem `organizacao_id` e é protegida por Row Level Security.
+Quatro tabelas, nenhuma com termos de escolinha. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados (por exemplo, Row Level Security do PostgreSQL).
 
 ```mermaid
 erDiagram

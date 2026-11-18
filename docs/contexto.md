@@ -23,7 +23,7 @@ Pequenos negócios com cobrança recorrente (o piloto é uma escolinha de esport
 | 17/11/2026 | **Sem tabela de pagadores na v1** | A baixa vem pelo `txid`; o contato do lembrete fica na assinatura. Volta se vier boleto |
 | 17/11/2026 | **Cobranças recorrentes e avulsas na mesma tabela**, com `chave_idempotencia` única por organização | Baixa, lembretes e relatórios funcionam igual para as duas; pedir duas vezes nunca duplica |
 | 17/11/2026 | **Nomes em português** no código e no banco | Produto para o mercado brasileiro |
-| 17/11/2026 | **Python + PostgreSQL** | Leitura simples, mTLS de saída em uma linha com `httpx`, Row Level Security para isolar organizações |
+| 18/11/2026 | **Linguagem e banco de dados ainda a escolher**; os documentos ficam neutros até lá | A stack precisa permitir mTLS de saída e isolar organizações no próprio banco de dados (por exemplo, Row Level Security do PostgreSQL). Exemplos de tecnologia nos documentos são só exemplos |
 | 17/11/2026 | **Adaptador de banco com interface em termos nossos**: emitir, consultar, cancelar, listar pagamentos | Nada do formato do Inter fora do adaptador; outro banco é outro adaptador |
 | 17/11/2026 | **Servidor MCP só depois**, começando por consultas | Criar e cancelar com IA no meio pedem confirmação humana |
 
