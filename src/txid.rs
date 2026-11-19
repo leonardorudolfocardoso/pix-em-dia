@@ -7,10 +7,20 @@
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-/// Quantos bytes do SHA-256 viram `txid`. Em hexadecimal, 16 bytes dão
-/// 32 caracteres, dentro dos 26 a 35 que o Banco Central aceita, e 128
-/// bits, o bastante para nunca colidir no volume do Em Dia.
+/// Quantos bytes do SHA-256 viram `txid`.
+///
+/// - **Formato:** cada byte vira 2 caracteres hexadecimais, então 16 bytes
+///   dão 32 caracteres, dentro dos 26 a 35 que o Banco Central aceita. O
+///   `assert!` abaixo confere isso na compilação.
+/// - **Colisão:** 16 bytes são 128 bits. Pelo paradoxo do aniversário, a
+///   chance de dois de `n` txids coincidirem é no máximo `n² / 2¹²⁹`. Com
+///   um milhão de cobranças numa organização (uma escola de 500 alunos leva
+///   mais de 150 anos para chegar lá), dá `10¹² / 6,8 × 10³⁸ ≈ 1,5 × 10⁻²⁷`.
+///   E o `UNIQUE (organizacao_id, txid)` do banco recusaria a colisão em vez
+///   de misturar cobranças.
 const BYTES_DO_TXID: usize = 16;
+
+const _: () = assert!(2 * BYTES_DO_TXID >= 26 && 2 * BYTES_DO_TXID <= 35);
 
 /// Calcula o `txid` de uma cobrança: os 32 primeiros caracteres, em
 /// hexadecimal minúsculo, do SHA-256 do id da organização (16 bytes) seguido
@@ -24,8 +34,10 @@ pub fn calcular_txid(organizacao: Uuid, chave_idempotencia: &str) -> String {
         .chain_update(organizacao.as_bytes())
         .chain_update(chave_idempotencia.as_bytes())
         .finalize();
-    hash[..BYTES_DO_TXID]
-        .iter()
+    // `take` em vez de `hash[..BYTES_DO_TXID]`: nunca entra em pânico. O
+    // SHA-256 sempre tem 32 bytes, então os 16 pedidos sempre existem.
+    hash.iter()
+        .take(BYTES_DO_TXID)
         .map(|byte| format!("{byte:02x}"))
         .collect()
 }
@@ -37,7 +49,9 @@ mod tests {
     const ORG_A: Uuid = Uuid::from_u128(0x0193_6a1e_7c2b_7d4f_9e8a_1b2c_3d4e_5f60);
     const ORG_B: Uuid = Uuid::from_u128(0x0193_6a1e_7c2b_7d4f_9e8a_1b2c_3d4e_5f61);
 
-    fn formato_valido(txid: &str) -> bool {
+    /// Confere a regra do Banco Central para o `txid` da `cobv`:
+    /// `^[a-zA-Z0-9]{26,35}$`.
+    fn eh_txid_valido(txid: &str) -> bool {
         (26..=35).contains(&txid.len()) && txid.bytes().all(|c| c.is_ascii_alphanumeric())
     }
 
@@ -91,7 +105,7 @@ mod tests {
         for chave in chaves {
             for org in [ORG_A, ORG_B, Uuid::nil(), Uuid::max()] {
                 let txid = calcular_txid(org, chave);
-                assert!(formato_valido(&txid), "txid inválido: {txid}");
+                assert!(eh_txid_valido(&txid), "txid inválido: {txid}");
             }
         }
     }
