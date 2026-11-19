@@ -56,7 +56,7 @@ Issues de decisão já abertas:
 
 ### E1.5 txid determinístico
 **Objetivo:** cada cobrança ter um identificador Pix calculado, não sorteado.
-**Inclui:** função `calcular_txid(organizacao, assinatura, periodo)`, com 26 a 35 letras e números (regra do Banco Central) e sem dado pessoal.
+**Inclui:** função `calcular_txid(organizacao, chave_idempotencia)`, um hash com 26 a 35 letras e números (regra do Banco Central) e sem dado pessoal. Na recorrente a chave é `mensal:<assinatura>:<periodo>`; na avulsa, a que o pedido informa. A chave decide o que é duplicata e o `txid` sai dela, então os dois nunca discordam.
 **Pronto quando:** testes mostram o mesmo resultado para a mesma entrada, resultados diferentes para entradas diferentes e o formato sempre válido.
 **Depende de:** E1.2
 

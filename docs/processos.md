@@ -75,7 +75,7 @@ flowchart LR
 
 ## Emissão mensal
 
-Primeiro grava a cobrança no nosso banco, depois pede ao Inter. Como o `txid` é calculado, repetir a rotina sempre cai na mesma cobrança.
+Primeiro grava a cobrança no nosso banco, depois pede ao Inter. A chave de idempotência da recorrente é `mensal:<assinatura>:<período>`, e o `txid` é calculado a partir dela; repetir a rotina sempre cai na mesma cobrança.
 
 ```mermaid
 sequenceDiagram
@@ -241,7 +241,7 @@ erDiagram
     text tipo "recorrente ou avulsa"
     date periodo "só recorrente"
     text descricao
-    text chave_idempotencia "única por organização"
+    text chave_idempotencia "única por organização; txid sai dela"
     bigint valor_centavos
     date vencimento
     text situacao
