@@ -75,7 +75,7 @@ flowchart LR
 
 ## Emissão mensal
 
-Primeiro grava a cobrança no nosso banco, depois pede ao Inter. Como o `txid` é calculado, repetir a rotina sempre cai na mesma cobrança.
+Primeiro grava a cobrança no nosso banco, depois pede ao Inter. A chave de idempotência da recorrente é `mensal:<assinatura>:<período>`, e o `txid` é calculado a partir dela; repetir a rotina sempre cai na mesma cobrança.
 
 ```mermaid
 sequenceDiagram
@@ -117,7 +117,7 @@ flowchart TD
   cada --> chave["chave = evento-dez-2026:referência"]
   chave --> existe{"Já existe cobrança<br/>com essa chave?"}
   existe -->|sim| devolve["Devolve a existente<br/>sem criar outra"]
-  existe -->|não| grava["Grava a_emitir<br/>contato copiado da assinatura"]
+  existe -->|não| grava["Grava a_emitir<br/>contato da assinatura ou informado no pedido"]
   grava --> emite["Emite no banco<br/>como na mensal"]
   emite --> aberta["aberta"]
 ```
@@ -200,58 +200,75 @@ stateDiagram-v2
 
 ## Modelo de dados
 
-Quatro tabelas, nenhuma com termos de um cliente específico. Pagamentos que não batem com nenhuma cobrança ficam em `pagamentos` com `cobranca_id` vazio, para o relatório e os alertas. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados, com Row Level Security do PostgreSQL.
+Cinco tabelas, nenhuma com termos de um cliente específico. Nome e telefone de contato ficam só em `contatos`, para que corrigir, apagar ou anonimizar os dados de uma pessoa seja mexer numa linha (LGPD). Pagamentos que não batem com nenhuma cobrança ficam em `pagamentos` com `cobranca_id` vazio, para o relatório e os alertas. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados, com Row Level Security do PostgreSQL.
 
 ```mermaid
 erDiagram
   ORGANIZACOES ||--o{ ASSINATURAS : tem
   ORGANIZACOES ||--o{ COBRANCAS : recebe
-  ASSINATURAS ||--o{ COBRANCAS : "gera (recorrente) ou empresta contato (avulsa)"
-  COBRANCAS |o--o{ PAGAMENTOS : "quitada por (sem cobrança = pagamento sem dono)"
+  ORGANIZACOES ||--o{ PAGAMENTOS : recebe
+  ORGANIZACOES ||--o{ CONTATOS : tem
+  CONTATOS |o--o{ ASSINATURAS : "recebe lembretes de"
+  CONTATOS |o--o{ COBRANCAS : "recebe lembrete de"
+  ASSINATURAS |o--o{ COBRANCAS : "gera (recorrente)"
+  COBRANCAS |o--o{ PAGAMENTOS : "quitada por (vazio = Pix sem cobrança)"
   ORGANIZACOES {
-    uuid id
-    text nome
-    text hash_token
-    text chave_pix
-    smallint dias_apos_vencimento
-    date certificado_vence_em
-    timestamptz ultima_baixa_em
+    uuid id PK
+    text nome "NOT NULL"
+    text chave_pix "NOT NULL"
+    smallint dias_apos_vencimento "NOT NULL, padrão 30"
   }
   ASSINATURAS {
-    uuid id
-    text descricao
-    text referencia_externa
-    bigint valor_centavos
-    smallint dia_vencimento
-    boolean ativa
-    text contato_nome
-    text contato_telefone
+    uuid id PK
+    uuid organizacao_id FK "NOT NULL"
+    text referencia_externa UK "NOT NULL, única por organização"
+    text descricao "NOT NULL"
+    bigint valor_centavos "NOT NULL, > 0"
+    smallint dia_vencimento "NOT NULL, 1 a 28"
+    boolean ativa "NOT NULL, padrão true"
+    uuid contato_id FK "vazio = sem lembrete"
+  }
+  CONTATOS {
+    uuid id PK
+    uuid organizacao_id FK "NOT NULL"
+    text nome "NOT NULL"
+    text telefone "NOT NULL"
   }
   COBRANCAS {
-    uuid id
-    uuid assinatura_id "opcional na avulsa"
-    text tipo "recorrente ou avulsa"
-    date periodo "só recorrente"
-    text descricao
-    text chave_idempotencia "única por organização"
-    bigint valor_centavos
-    date vencimento
-    text situacao
-    text motivo_falha "quando falhou"
-    text txid "único por organização"
-    text pix_copia_e_cola
+    uuid id PK
+    uuid organizacao_id FK "NOT NULL"
+    uuid assinatura_id FK "obrigatório na recorrente"
+    uuid contato_id FK "da assinatura ou do pedido avulso"
+    text tipo "recorrente | avulsa"
+    date periodo "só e sempre na recorrente"
+    text descricao "NOT NULL"
+    text chave_idempotencia UK "NOT NULL, única por org.; txid sai dela"
+    bigint valor_centavos "NOT NULL, > 0"
+    date vencimento "NOT NULL"
+    text situacao "a_emitir|aberta|falhou|paga|cancelada|expirada"
+    text motivo_falha "preenchido só em falhou"
+    text txid UK "NOT NULL, única por org.; calculado da chave"
+    text pix_copia_e_cola "vazio até o Inter criar"
   }
   PAGAMENTOS {
-    uuid id
-    uuid cobranca_id "vazio = pagamento sem dono"
-    text txid "como veio do banco; vazio = Pix direto na chave"
-    text pagador_nome "só sem cobrança, se o banco informar"
-    bigint valor_centavos
-    timestamptz pago_em
-    text banco_e2e_id "único: mesmo Pix, um pagamento"
+    uuid id PK
+    uuid organizacao_id FK "NOT NULL"
+    uuid cobranca_id FK "vazio = Pix sem cobrança"
+    text txid "como veio do banco; vazio = Pix na chave"
+    text pagador_nome "se o banco informar"
+    bigint valor_centavos "NOT NULL, > 0"
+    timestamptz pago_em "NOT NULL"
+    text pix_e2e_id UK "única por org.; mesmo Pix, um pagamento"
   }
 ```
 
+Regras que a primeira migração (E1.1) vai garantir no próprio banco:
+
+- **Isolamento:** RLS ligado e forçado nas cinco tabelas, com a política `organizacao_id = current_setting('app.organizacao_id')::uuid` (em `organizacoes`, `id = ...`). As chaves estrangeiras incluem `organizacao_id`, então uma cobrança nunca aponta para assinatura ou contato de outra organização.
+- **Contra duplicata:** `UNIQUE (organizacao_id, chave_idempotencia)` e `UNIQUE (organizacao_id, txid)` em cobranças, `UNIQUE (organizacao_id, pix_e2e_id)` em pagamentos e `UNIQUE (organizacao_id, referencia_externa)` em assinaturas. O `txid` é calculado a partir da chave (E1.5), e na recorrente a chave é `mensal:<assinatura>:<período>`.
+- **Coerência:** `tipo` e `situacao` são `text` com `CHECK` (mais simples de mudar em migrações só para frente; o `enum` fica no Rust); recorrente exige `assinatura_id` e `periodo`, avulsa não tem `periodo`; `motivo_falha` só e sempre em `falhou`; valores em centavos maiores que zero; `dia_vencimento` de 1 a 28, para fevereiro nunca quebrar.
+- **Fica para o item que usa:** `organizacoes.hash_token` (E1.4), `organizacoes.ultima_baixa_em` (baixa, E2), `organizacoes.certificado_vence_em` (aviso do certificado), `organizacoes.planilha_id` (E3.4) e `pagamentos.origem` para pagamento em dinheiro (E3.7).
+- **Lacuna conhecida:** um Pix pagando várias cobranças (só acontece no Pix direto na chave, na transição). Se aparecer, uma migração cria uma tabela de ligação entre pagamentos e cobranças, junto com a aba Vínculos (E3.7).
 
 ## Certificado anual
 

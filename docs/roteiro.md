@@ -36,9 +36,9 @@ Issues de decisão já abertas:
 **Pronto quando:** `cargo test` passa no computador e no GitHub.
 **Depende de:** E0.1
 
-### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
-**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
-**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados). Traz junto o que só faz sentido com uma migração: `sqlx` e `tokio` no `Cargo.toml`, migrações em `migrations/` aplicadas pelo `sqlx`, testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas), cache offline do `sqlx` (`.sqlx/`) commitado e um Postgres no GitHub Actions.
+### E1.1 Esquema do banco: organizações, contatos, assinaturas, cobranças e pagamentos
+**Objetivo:** criar as cinco tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `contatos` com nome e telefone, apontado por assinaturas e cobranças; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados). Traz junto o que só faz sentido com uma migração: `sqlx` e `tokio` no `Cargo.toml`, migrações em `migrations/` aplicadas pelo `sqlx`, testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas), cache offline do `sqlx` (`.sqlx/`) commitado e um Postgres no GitHub Actions.
 **Pronto quando:** a migração roda num banco vazio sem erro, e `cargo test` passa com ela no computador e no GitHub.
 **Depende de:** E1.2
 
@@ -56,7 +56,7 @@ Issues de decisão já abertas:
 
 ### E1.5 txid determinístico
 **Objetivo:** cada cobrança ter um identificador Pix calculado, não sorteado.
-**Inclui:** função `calcular_txid(organizacao, assinatura, periodo)`, com 26 a 35 letras e números (regra do Banco Central) e sem dado pessoal.
+**Inclui:** função `calcular_txid(organizacao, chave_idempotencia)`, um hash com 26 a 35 letras e números (regra do Banco Central) e sem dado pessoal. Na recorrente a chave é `mensal:<assinatura>:<periodo>`; na avulsa, a que o pedido informa. A chave decide o que é duplicata e o `txid` sai dela, então os dois nunca discordam.
 **Pronto quando:** testes mostram o mesmo resultado para a mesma entrada, resultados diferentes para entradas diferentes e o formato sempre válido.
 **Depende de:** E1.2
 
@@ -74,7 +74,7 @@ Issues de decisão já abertas:
 
 ### E1.8 Cobranças avulsas
 **Objetivo:** cobrar algo uma vez só, de uma pessoa ou de um grupo.
-**Inclui:** `criar_cobranca_avulsa(descricao, valor, vencimento, chave_idempotencia, assinatura?)`; criação em grupo (ex.: uma taxa de evento de R$ 80 para 25 assinaturas escolhidas), cada uma com a chave `evento-2026:<referencia>`; contato herdado da assinatura quando houver.
+**Inclui:** `criar_cobranca_avulsa(descricao, valor, vencimento, chave_idempotencia, assinatura?)`; criação em grupo (ex.: uma taxa de evento de R$ 80 para 25 assinaturas escolhidas), cada uma com a chave `evento-2026:<referencia>`; contato herdado da assinatura quando houver, ou informado no pedido para quem não tem assinatura.
 **Pronto quando:** repetir o mesmo pedido devolve a mesma cobrança, e um teste cobre a criação em grupo rodando duas vezes.
 **Depende de:** E1.7
 
@@ -158,13 +158,13 @@ Issues de decisão já abertas:
 
 ### E3.7 Dar baixa à mão pela aba Vínculos
 **Objetivo:** ligar um Pix sem cobrança (ou um pagamento em dinheiro) à cobrança certa, para quem já pagou sair da lista.
-**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança (ou o `id` de uma linha "pago no balcão" da aba Avulsas), ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `banco_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
+**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança, ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `pix_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
 **Pronto quando:** testes de idempotência (ler a mesma linha duas vezes não duplica nem muda nada), não deixa ligar um pagamento a uma cobrança já paga (a linha fica marcada com o motivo), e a cobrança some da próxima lista.
 **Depende de:** E2.6, E3.4
 
 ### E3.8 Criar cobrança avulsa pela aba Avulsas
 **Objetivo:** criar uma cobrança única, para uma assinatura ou um grupo, sem precisar de quem programa.
-**Inclui:** a cada leitura da planilha, cada linha nova da aba Avulsas (descrição, valor, vencimento, referências das assinaturas) vira cobrança por `criar_cobranca_avulsa` (E1.8), com a chave de idempotência `planilha:<id da linha>:<referência>`; a coluna de situação mostra "emitida", "falhou" e o motivo, ou o Pix copia e cola. Editar uma linha já emitida não muda a cobrança: a coluna de situação avisa e a correção é cancelar (E3.3) e criar outra linha. **Venda no balcão** (quem compra quer pagar na hora): a pessoa paga direto na chave Pix e a linha é marcada como "pago no balcão"; o Em Dia não emite Pix para ela, e o pagamento, que chega como Pix sem cobrança, é ligado à linha na aba Vínculos (E3.7), criando a cobrança já `paga`.
+**Inclui:** a cada leitura da planilha, cada linha nova da aba Avulsas (descrição, valor, vencimento, referências das assinaturas) vira cobrança por `criar_cobranca_avulsa` (E1.8), com a chave de idempotência `planilha:<id da linha>:<referência>`; a coluna de situação mostra "emitida", "falhou" e o motivo, ou o Pix copia e cola. Editar uma linha já emitida não muda a cobrança: a coluna de situação avisa e a correção é cancelar (E3.3) e criar outra linha. Venda no balcão, paga na hora, não passa pela aba Avulsas: fica fora do Em Dia.
 **Pronto quando:** ler a mesma linha duas vezes cria uma cobrança só por assinatura, emitida no banco como as outras.
 **Depende de:** E1.8, E2.4, E3.4
 
@@ -185,11 +185,13 @@ Issues de decisão já abertas:
 
 ## Depois (fora da v1)
 
-- **Botão "Gerar Pix" na planilha** para venda no balcão: um Apps Script chama uma Function URL do Lambda só com "processe a organização X agora" (sem dados, com segredo e limite de chamadas); o Em Dia lê a planilha pela conta de serviço, emite a cobrança vencendo no dia e escreve o copia e cola na linha em segundos.
+- **Botão "Gerar Pix" na planilha**, se a venda no balcão passar a ser cobrança do Em Dia: um Apps Script chama uma Function URL do Lambda só com "processe a organização X agora" (sem dados, com segredo e limite de chamadas); o Em Dia lê a planilha pela conta de serviço, emite a cobrança vencendo no dia e escreve o copia e cola na linha em segundos.
 - **Interface própria no lugar da planilha**, com autenticação própria, quando os fluxos da planilha estiverem provados no protótipo.
 - **Intervalo da baixa por organização**, com uma agenda do EventBridge por organização, se algum cliente precisar.
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
 - **Servidor MCP** com `consultar_cobranca` e `listar_atrasadas` primeiro; criar e cancelar só com confirmação.
 - **Pix Automático** para quem topar o débito recorrente.
-- **Boleto**, se aparecer demanda (aí volta a tabela de pagadores, com CPF e endereço).
+- **Boleto**, se aparecer demanda (CPF e endereço entram em `contatos`).
+- **Juntar contatos repetidos** (a mesma pessoa em várias linhas da planilha), quando a interface própria deixar a equipe dizer quem é quem.
+- **Criptografar nome e telefone** de `contatos` no próprio Em Dia, com chave no Parameter Store e um HMAC do telefone para agrupar a lista, se o risco justificar. Até lá vale a criptografia em repouso do Neon e o TLS.
 - **Recebimentos em conta de pessoa física**: fora, porque a API é só para conta PJ.
