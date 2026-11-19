@@ -256,7 +256,7 @@ erDiagram
     text pagador_nome "só sem cobrança, se o banco informar"
     bigint valor_centavos
     timestamptz pago_em
-    text banco_e2e_id "único: mesmo Pix, um pagamento"
+    text pix_e2e_id "único: mesmo Pix, um pagamento"
   }
 ```
 

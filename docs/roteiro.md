@@ -158,7 +158,7 @@ Issues de decisão já abertas:
 
 ### E3.7 Dar baixa à mão pela aba Vínculos
 **Objetivo:** ligar um Pix sem cobrança (ou um pagamento em dinheiro) à cobrança certa, para quem já pagou sair da lista.
-**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança (ou o `id` de uma linha "pago no balcão" da aba Avulsas), ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `banco_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
+**Inclui:** o Em Dia escreve na aba Vínculos cada Pix sem cobrança (nome de quem pagou, valor, hora); a equipe preenche a referência da cobrança (ou o `id` de uma linha "pago no balcão" da aba Avulsas), ou cria uma linha de pagamento em dinheiro; a rotina lê a aba, grava o vínculo, marca a cobrança como `paga` e escreve o resultado na coluna de situação. Pagamento em dinheiro cria um pagamento sem `pix_e2e_id`, com origem "manual". Apagar o vínculo na planilha desfaz a baixa à mão e volta a cobrança para `aberta`.
 **Pronto quando:** testes de idempotência (ler a mesma linha duas vezes não duplica nem muda nada), não deixa ligar um pagamento a uma cobrança já paga (a linha fica marcada com o motivo), e a cobrança some da próxima lista.
 **Depende de:** E2.6, E3.4
 
