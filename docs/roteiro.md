@@ -36,9 +36,9 @@ Issues de decisão já abertas:
 **Pronto quando:** `cargo test` passa no computador e no GitHub.
 **Depende de:** E0.1
 
-### E1.1 Esquema do banco: organizações, assinaturas, cobranças e pagamentos
-**Objetivo:** criar as quatro tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
-**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados). Traz junto o que só faz sentido com uma migração: `sqlx` e `tokio` no `Cargo.toml`, migrações em `migrations/` aplicadas pelo `sqlx`, testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas), cache offline do `sqlx` (`.sqlx/`) commitado e um Postgres no GitHub Actions.
+### E1.1 Esquema do banco: organizações, contatos, assinaturas, cobranças e pagamentos
+**Objetivo:** criar as cinco tabelas, com isolamento por organização garantido pelo Row Level Security do PostgreSQL.
+**Inclui:** a primeira migração: cobranças recorrentes e avulsas na mesma tabela, com `assinatura_id` (opcional na avulsa) e `motivo_falha`; `contatos` com nome e telefone, apontado por assinaturas e cobranças; `ultima_baixa_em` nas organizações; `pagamentos.cobranca_id` opcional, para guardar pagamentos sem dono; `UNIQUE (organizacao_id, chave_idempotencia)` contra duplicata; e a função `autenticar_organizacao`. O modelo completo está em [processos.md](processos.md#modelo-de-dados). Traz junto o que só faz sentido com uma migração: `sqlx` e `tokio` no `Cargo.toml`, migrações em `migrations/` aplicadas pelo `sqlx`, testes com `sqlx::test` (um banco novo por teste, com as migrações aplicadas), cache offline do `sqlx` (`.sqlx/`) commitado e um Postgres no GitHub Actions.
 **Pronto quando:** a migração roda num banco vazio sem erro, e `cargo test` passa com ela no computador e no GitHub.
 **Depende de:** E1.2
 
@@ -74,7 +74,7 @@ Issues de decisão já abertas:
 
 ### E1.8 Cobranças avulsas
 **Objetivo:** cobrar algo uma vez só, de uma pessoa ou de um grupo.
-**Inclui:** `criar_cobranca_avulsa(descricao, valor, vencimento, chave_idempotencia, assinatura?)`; criação em grupo (ex.: uma taxa de evento de R$ 80 para 25 assinaturas escolhidas), cada uma com a chave `evento-2026:<referencia>`; contato herdado da assinatura quando houver.
+**Inclui:** `criar_cobranca_avulsa(descricao, valor, vencimento, chave_idempotencia, assinatura?)`; criação em grupo (ex.: uma taxa de evento de R$ 80 para 25 assinaturas escolhidas), cada uma com a chave `evento-2026:<referencia>`; contato herdado da assinatura quando houver, ou informado no pedido para quem não tem assinatura.
 **Pronto quando:** repetir o mesmo pedido devolve a mesma cobrança, e um teste cobre a criação em grupo rodando duas vezes.
 **Depende de:** E1.7
 
@@ -191,5 +191,7 @@ Issues de decisão já abertas:
 - **Webhook do Pix** para baixa em segundos (exige endereço HTTPS público e mTLS de entrada).
 - **Servidor MCP** com `consultar_cobranca` e `listar_atrasadas` primeiro; criar e cancelar só com confirmação.
 - **Pix Automático** para quem topar o débito recorrente.
-- **Boleto**, se aparecer demanda (aí volta a tabela de pagadores, com CPF e endereço).
+- **Boleto**, se aparecer demanda (CPF e endereço entram em `contatos`).
+- **Juntar contatos repetidos** (a mesma pessoa em várias linhas da planilha), quando a interface própria deixar a equipe dizer quem é quem.
+- **Criptografar nome e telefone** de `contatos` no próprio Em Dia, com chave no Parameter Store e um HMAC do telefone para agrupar a lista, se o risco justificar. Até lá vale a criptografia em repouso do Neon e o TLS.
 - **Recebimentos em conta de pessoa física**: fora, porque a API é só para conta PJ.

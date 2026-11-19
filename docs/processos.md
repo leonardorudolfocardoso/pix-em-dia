@@ -117,7 +117,7 @@ flowchart TD
   cada --> chave["chave = evento-dez-2026:referência"]
   chave --> existe{"Já existe cobrança<br/>com essa chave?"}
   existe -->|sim| devolve["Devolve a existente<br/>sem criar outra"]
-  existe -->|não| grava["Grava a_emitir<br/>contato copiado da assinatura"]
+  existe -->|não| grava["Grava a_emitir<br/>contato da assinatura ou informado no pedido"]
   grava --> emite["Emite no banco<br/>como na mensal"]
   emite --> aberta["aberta"]
 ```
@@ -200,13 +200,16 @@ stateDiagram-v2
 
 ## Modelo de dados
 
-Quatro tabelas, nenhuma com termos de um cliente específico. Pagamentos que não batem com nenhuma cobrança ficam em `pagamentos` com `cobranca_id` vazio, para o relatório e os alertas. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados, com Row Level Security do PostgreSQL.
+Cinco tabelas, nenhuma com termos de um cliente específico. Nome e telefone de contato ficam só em `contatos`, para que corrigir, apagar ou anonimizar os dados de uma pessoa seja mexer numa linha (LGPD). Pagamentos que não batem com nenhuma cobrança ficam em `pagamentos` com `cobranca_id` vazio, para o relatório e os alertas. Toda tabela de dados tem `organizacao_id` e é protegida pelo isolamento por organização no próprio banco de dados, com Row Level Security do PostgreSQL.
 
 ```mermaid
 erDiagram
   ORGANIZACOES ||--o{ ASSINATURAS : tem
   ORGANIZACOES ||--o{ COBRANCAS : recebe
-  ASSINATURAS ||--o{ COBRANCAS : "gera (recorrente) ou empresta contato (avulsa)"
+  ORGANIZACOES ||--o{ CONTATOS : tem
+  CONTATOS |o--o{ ASSINATURAS : "recebe lembretes de"
+  CONTATOS |o--o{ COBRANCAS : "recebe lembrete de"
+  ASSINATURAS |o--o{ COBRANCAS : "gera (recorrente)"
   COBRANCAS |o--o{ PAGAMENTOS : "quitada por (sem cobrança = pagamento sem dono)"
   ORGANIZACOES {
     uuid id
@@ -224,12 +227,17 @@ erDiagram
     bigint valor_centavos
     smallint dia_vencimento
     boolean ativa
-    text contato_nome
-    text contato_telefone
+    uuid contato_id
+  }
+  CONTATOS {
+    uuid id
+    text nome
+    text telefone
   }
   COBRANCAS {
     uuid id
     uuid assinatura_id "opcional na avulsa"
+    uuid contato_id "da assinatura ou do pedido avulso"
     text tipo "recorrente ou avulsa"
     date periodo "só recorrente"
     text descricao
