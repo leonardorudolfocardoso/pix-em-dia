@@ -24,7 +24,6 @@ use std::env;
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use chrono::{Days, Local};
 use pix_em_dia::calcular_txid;
 use reqwest::{Client, Identity, Method, RequestBuilder};
 use serde_json::{Value, json};
@@ -32,10 +31,11 @@ use uuid::Uuid;
 
 const SANDBOX: &str = "https://cdpj-sandbox.partners.uatinter.co";
 
-type Resultado<T> = Result<T, Box<dyn Error>>;
+/// Qualquer data futura serve para o experimento.
+const VENCIMENTO: &str = "2027-12-10";
 
 #[tokio::main]
-async fn main() -> Resultado<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let inter = Inter::conectar().await?;
 
     // Cada execução usa txids novos: uma "organização" inventada a partir da
@@ -43,10 +43,9 @@ async fn main() -> Resultado<()> {
     let execucao = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let organizacao = Uuid::from_u128(u128::from(execucao));
     let txid = |nome: &str| calcular_txid(organizacao, &format!("experimento:{nome}"));
-    let vencimento = (Local::now().date_naive() + Days::new(10)).to_string();
     let cobranca = |valor: &str, devedor: Option<Value>| {
         let mut corpo = json!({
-            "calendario": { "dataDeVencimento": vencimento, "validadeAposVencimento": 30 },
+            "calendario": { "dataDeVencimento": VENCIMENTO, "validadeAposVencimento": 30 },
             "valor": { "original": valor },
             "chave": inter.chave_pix,
             "solicitacaoPagador": "Experimento Em Dia, dados inventados",
@@ -57,7 +56,7 @@ async fn main() -> Resultado<()> {
         corpo
     };
 
-    titulo("Issue #1: dados do devedor");
+    println!("\n# Issue #1: dados do devedor");
     let sem_devedor = txid("sem-devedor");
     let so_nome = txid("so-nome");
     let nome_e_cpf = txid("nome-e-cpf");
@@ -110,7 +109,7 @@ async fn main() -> Resultado<()> {
         return Ok(());
     };
 
-    titulo("Issue #2: PUT repetido no mesmo txid");
+    println!("\n# Issue #2: PUT repetido no mesmo txid");
     inter
         .get_cobv("2a. situação depois de criar", &txid)
         .await?;
@@ -162,19 +161,19 @@ struct Inter {
 
 impl Inter {
     /// Monta o cliente com o certificado (mTLS) e pede o token OAuth.
-    async fn conectar() -> Resultado<Self> {
-        let mut pem = std::fs::read(variavel("INTER_CERTIFICADO")?)?;
-        pem.extend(std::fs::read(variavel("INTER_CHAVE_PRIVADA")?)?);
+    async fn conectar() -> Result<Self, Box<dyn Error>> {
+        let mut pem = std::fs::read(env::var("INTER_CERTIFICADO")?)?;
+        pem.extend(std::fs::read(env::var("INTER_CHAVE_PRIVADA")?)?);
         let http = Client::builder()
             .identity(Identity::from_pem(&pem)?)
             .build()?;
 
-        titulo("Token");
+        println!("\n# Token");
         let resposta = http
             .post(format!("{SANDBOX}/oauth/v2/token"))
             .form(&[
-                ("client_id", variavel("INTER_CLIENT_ID")?),
-                ("client_secret", variavel("INTER_CLIENT_SECRET")?),
+                ("client_id", env::var("INTER_CLIENT_ID")?),
+                ("client_secret", env::var("INTER_CLIENT_SECRET")?),
                 ("grant_type", "client_credentials".to_string()),
                 ("scope", "cobv.read cobv.write".to_string()),
             ])
@@ -197,17 +196,22 @@ impl Inter {
             http,
             token,
             conta_corrente: env::var("INTER_CONTA_CORRENTE").ok(),
-            chave_pix: variavel("INTER_CHAVE_PIX")?,
+            chave_pix: env::var("INTER_CHAVE_PIX")?,
         })
     }
 
     /// `PUT /cobv/{txid}`. Devolve se o sandbox aceitou (2xx).
-    async fn put_cobv(&self, passo: &str, txid: &str, corpo: Value) -> Resultado<bool> {
+    async fn put_cobv(
+        &self,
+        passo: &str,
+        txid: &str,
+        corpo: Value,
+    ) -> Result<bool, Box<dyn Error>> {
         let caminho = format!("/pix/v2/cobv/{txid}");
         self.chamar(passo, Method::PUT, &caminho, Some(corpo)).await
     }
 
-    async fn get_cobv(&self, passo: &str, txid: &str) -> Resultado<bool> {
+    async fn get_cobv(&self, passo: &str, txid: &str) -> Result<bool, Box<dyn Error>> {
         let caminho = format!("/pix/v2/cobv/{txid}");
         self.chamar(passo, Method::GET, &caminho, None).await
     }
@@ -219,7 +223,7 @@ impl Inter {
         metodo: Method,
         caminho: &str,
         corpo: Option<Value>,
-    ) -> Resultado<bool> {
+    ) -> Result<bool, Box<dyn Error>> {
         let mut pedido: RequestBuilder = self
             .http
             .request(metodo.clone(), format!("{SANDBOX}{caminho}"))
@@ -239,12 +243,4 @@ impl Inter {
         println!("\n## {passo}\n{metodo} {caminho} -> {status}\n{legivel}");
         Ok(status.is_success())
     }
-}
-
-fn variavel(nome: &str) -> Resultado<String> {
-    env::var(nome).map_err(|_| format!("falta a variável de ambiente {nome}").into())
-}
-
-fn titulo(texto: &str) {
-    println!("\n# {texto}");
 }
