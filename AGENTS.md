@@ -46,6 +46,7 @@ cargo fmt                         # formatação
 
 ## Forma de trabalhar
 
+- O trabalho anda em iterações (veja `docs/iteracoes.md`); o roteiro é um backlog, não uma ordem a seguir item por item.
 - Uma issue por pull request, pequena o bastante para ser lida de uma vez.
 - Explique no PR o porquê das decisões; o dono do projeto revisa para aprender.
 - Documentação junto com o código: se o PR muda uma decisão ou um processo, atualize no mesmo PR a tabela de decisões em `docs/contexto.md` (com a data) e o diagrama em `docs/processos.md`.

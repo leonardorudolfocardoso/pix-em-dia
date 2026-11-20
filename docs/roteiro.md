@@ -1,12 +1,12 @@
 # Roteiro de desenvolvimento
 
-Rascunho de 17/11/2026; cada item vira uma issue no GitHub. Cada item é uma entrega pequena, revisada antes da próxima. A ordem segue as dependências.
+Backlog, não plano fixo. Escrito em 17/11/2026, antes de qualquer contato com o banco real, então é uma aposta. O trabalho anda em [iterações](iteracoes.md) de ponta a ponta, e este roteiro é revisado depois de cada uma: itens mudam, somem ou trocam de ordem. Cada item é uma entrega pequena; a ordem abaixo segue as dependências, não a ordem em que serão feitos.
 
 Os itens são numerados por etapa (E1.3 é o terceiro item da etapa 1) para não se confundirem com os números das issues do GitHub. Quando um item depende de uma issue, ela aparece como link.
 
 Rótulos propostos: `etapa-0-decisoes`, `etapa-1-base`, `etapa-2-inter`, `etapa-3-operacao`, `etapa-4-producao`, `depois`, `tarefa-manual` (feita por uma pessoa, sem código).
 
-Issues de decisão já abertas:
+Issues de decisão já abertas (perguntas da [iteração 1](iteracoes.md#iteração-1-uma-cobrança-no-sandbox-do-inter)):
 
 - [#1 Dados do devedor na cobv](https://github.com/leonardorudolfocardoso/pix-em-dia/issues/1)
 - [#2 PUT ou PATCH na cobv para garantir idempotência](https://github.com/leonardorudolfocardoso/pix-em-dia/issues/2)
@@ -54,7 +54,8 @@ Issues de decisão já abertas:
 **Pronto quando:** testes mostram que o token gerado autentica a organização certa, que o token não fica gravado em texto puro e que, depois da troca, o token antigo não funciona mais.
 **Depende de:** E1.3
 
-### E1.5 txid determinístico
+### E1.5 txid determinístico ✓
+**Feito em 20/11/2026:** `calcular_txid` em `src/txid.rs`; motivo nas decisões de [contexto.md](contexto.md).
 **Objetivo:** cada cobrança ter um identificador Pix calculado, não sorteado.
 **Inclui:** função `calcular_txid(organizacao, chave_idempotencia)`, um hash com 26 a 35 letras e números (regra do Banco Central) e sem dado pessoal. Na recorrente a chave é `mensal:<assinatura>:<periodo>`; na avulsa, a que o pedido informa. A chave decide o que é duplicata e o `txid` sai dela, então os dois nunca discordam.
 **Pronto quando:** testes mostram o mesmo resultado para a mesma entrada, resultados diferentes para entradas diferentes e o formato sempre válido.
