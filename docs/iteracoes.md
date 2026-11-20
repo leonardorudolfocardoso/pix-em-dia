@@ -2,7 +2,7 @@
 
 O Em Dia cresce em iterações curtas. Cada uma termina com algo que roda de ponta a ponta e responde perguntas com fatos (respostas reais do banco), não com suposições. Depois de cada iteração, o [roteiro](roteiro.md), que é um backlog, é revisado com o que se aprendeu: itens mudam, somem ou trocam de ordem.
 
-As issues abertas no GitHub são as perguntas de uma iteração. Uma iteração só fecha quando as perguntas dela estão respondidas, com a fonte, em [contexto.md](contexto.md).
+Cada iteração escolhe as perguntas que vai responder, e cada pergunta vira uma issue no GitHub. Nem toda issue é pergunta de iteração: um bug ou um item do backlog também vira issue. Uma iteração só fecha quando as perguntas dela estão respondidas, com a fonte, em [contexto.md](contexto.md).
 
 ## Iteração 1: uma cobrança no sandbox do Inter
 
