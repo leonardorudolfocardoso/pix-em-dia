@@ -51,7 +51,7 @@ mod tests {
 
     /// Confere a regra do Banco Central para o `txid` da `cobv`:
     /// `^[a-zA-Z0-9]{26,35}$`.
-    fn eh_txid_valido(txid: &str) -> bool {
+    fn txid_eh_valido(txid: &str) -> bool {
         (26..=35).contains(&txid.len()) && txid.bytes().all(|c| c.is_ascii_alphanumeric())
     }
 
@@ -105,7 +105,7 @@ mod tests {
         for chave in chaves {
             for org in [ORG_A, ORG_B, Uuid::nil(), Uuid::max()] {
                 let txid = calcular_txid(org, chave);
-                assert!(eh_txid_valido(&txid), "txid inválido: {txid}");
+                assert!(txid_eh_valido(&txid), "txid inválido: {txid}");
             }
         }
     }
